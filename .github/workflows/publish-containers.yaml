@@ -7,7 +7,7 @@ on:
         type: string
         required: false
         default: main
-        description: The branch we want to build and publish.
+        description: The branch to build and publish.
       registry:
         required: false
         type: string
