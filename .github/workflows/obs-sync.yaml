@@ -106,7 +106,7 @@ jobs:
         id: services
         run: |
           cd ${{ steps.checkout.outputs.checkout_dir }}
-          osc service run
+          osc service manualrun
 
           # Extract version
           version="$(sed -n 's/^Version:\s*\(.*\)/\1/p' *.spec)"
