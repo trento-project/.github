@@ -42,7 +42,7 @@ jobs:
     name: Update RPM package definitions
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/trento-project/continuous-delivery:main
+      image: ghcr.io/trento-project/continuous-delivery@sha256:3edb425673b118f8cd75cae4834050d79b76333ebf6caf8d612b1858d30b0722 # v1.0.0
       options: -u 0:0
 
     steps:
@@ -54,6 +54,9 @@ jobs:
           # to $HOME.
           real_home="$(getent passwd "$(whoami)" | cut -d':' -f6)"
           echo Real Home: "${real_home}"
+
+          mkdir -p "${real_home}/.ssh"
+          chmod 700 "${real_home}/.ssh"
 
           echo Adding src.opensuse.org to known hosts
           echo "src.opensuse.org ssh-ed25519 \
