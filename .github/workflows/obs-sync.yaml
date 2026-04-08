@@ -42,7 +42,7 @@ jobs:
     name: Update RPM package definitions
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/trento-project/continuous-delivery@sha256:3edb425673b118f8cd75cae4834050d79b76333ebf6caf8d612b1858d30b0722 # v1.0.0
+      image: ghcr.io/trento-project/continuous-delivery@sha256:ed5b5c41bf63e106722d0799516914c0c9e12fdd3aae389c86d96a79197617d6 # v1.2.0
       options: -u 0:0
 
     steps:
