@@ -109,7 +109,9 @@ jobs:
           osc service manualrun
 
           # Extract version
-          version="$(sed -n 's/^Version:\s*\(.*\)/\1/p' *.spec)"
+          echo "Extracting version..."
+          vfile="$(ls *.spec Chart.yaml 2>/dev/null | head -n 1)"
+          version="$(sed -n 's/^version:\s*\(.*\)/\1/Ip' "$vfile")"
           echo "version=${version}" >> $GITHUB_OUTPUT
           echo New version is $version
 
