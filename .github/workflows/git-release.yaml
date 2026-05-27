@@ -59,7 +59,7 @@ jobs:
 
       - name: Draft release
         id: draft-release
-        uses: release-drafter/release-drafter@139054aeaa9adc52ab36ddf67437541f039b88e2 # v7.1.1
+        uses: release-drafter/release-drafter@c2e2804cc59f45f57076a99af580d0fedb697927 # v7.3.0
         with:
           config-name: github:trento-project/.github:release_drafter_${{ inputs.triggering_branch }}.yaml
           publish: false
@@ -196,7 +196,7 @@ jobs:
     steps:
       - name: Publish release
         id: publish-release
-        uses: release-drafter/release-drafter@139054aeaa9adc52ab36ddf67437541f039b88e2 # v7.1.1
+        uses: release-drafter/release-drafter@c2e2804cc59f45f57076a99af580d0fedb697927 # v7.3.0
         with:
           config-name: github:trento-project/.github:release_drafter_${{ inputs.triggering_branch }}.yaml
           publish: true
