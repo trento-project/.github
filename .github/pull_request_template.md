@@ -4,6 +4,11 @@
 
 Fixes #<issue>
 
+<!-- ⚠️ Release labels:
+If your repository uses release drafter, ensure the appropriate release label is applied:
+https://github.com/trento-project/.github/blob/main/.github/release_drafter_main.yaml
+-->
+
 ### How was this tested?
 
 <!-- Describe what tests were added or updated for this change. -->
