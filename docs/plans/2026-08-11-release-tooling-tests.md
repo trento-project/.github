@@ -302,11 +302,11 @@ This step exists because a suite that passes against code it does not actually i
 
 - [ ] **Step 7: Ignore the dev virtualenv**
 
-Append to `.gitignore` (create it if absent):
+`.gitignore` already carries `.venv/`, `__pycache__/`, `*.pyc` and
+`state.json`. Append only what is missing — a duplicated entry is noise:
 
 ```
 .venv-dev/
-__pycache__/
 .pytest_cache/
 ```
 
@@ -1599,11 +1599,7 @@ def test_components_is_forwarded_to_the_child(monkeypatch, tmp_path, components_
         return Result()
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    render_table.main(
-        ["--collect", "--components", str(components_file), "--state-out", str(tmp_path / "s.json")]
-        if False
-        else ["--collect", "--components", str(components_file)]
-    )
+    render_table.main(["--collect", "--components", str(components_file)])
     assert "--components" in seen["argv"]
     assert str(components_file) in seen["argv"]
 
@@ -1673,7 +1669,7 @@ Replace the `config = load_config()` and `state = collect(...)` lines with:
 
 Run: `.venv-dev/bin/pytest scripts/release/tests/test_render_table_cli.py -v`
 
-Expected: all pass. Delete the dead `if False else` branch left in the first test by Step 1 and re-run — it is there only to make the intended call explicit while the flag does not exist yet.
+Expected: all pass.
 
 - [ ] **Step 6: Verify the real table is unchanged**
 
@@ -2202,8 +2198,14 @@ done
 echo "OBS"
 for project in "${PROJECTS[@]}"; do
   for package in "${PACKAGES[@]}"; do
+    # The package directory, which collect_state.py reads for the
+    # version, and the scmsync record, which fork_obs.py reads to find
+    # the git repository behind the package. Different paths; both are
+    # needed, and capturing only the first left fork_obs with nothing.
     capture "$OBS/public/source/$project/$package" \
             "$OUT/api.opensuse.org/public/source/$project/$package"
+    capture "$OBS/public/source/$project/$package/_scmsync.obsinfo" \
+            "$OUT/api.opensuse.org/public/source/$project/$package/_scmsync.obsinfo"
   done
 done
 
@@ -2345,7 +2347,8 @@ versions:
 YAML
   run_release plan.py --manifest "$E2E_TMP/hotfix.yaml"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"hotfix"* ]] || [[ "$output" == *"patch"* ]]
+  [[ "$output" == *"a hotfix off \`release\` must be a patch bump"* ]]
+  [[ "$output" == *"is a minor bump"* ]]
 }
 
 @test "leaving a dependent out of the train warns but passes" {
@@ -2831,43 +2834,52 @@ to."
 
 **Files:**
 - Create: `scripts/release/tests/e2e/variables.bats`
+- Create: `scripts/release/tests/e2e/variables-drift.bats`
 - Create: `scripts/release/tests/e2e/variables-unreadable.bats`
 - Create: `scripts/release/tests/e2e/fork-obs.bats`
+- Create: `scripts/release/tests/e2e/fork-obs-refused.bats`
+- Create: `scripts/release/tests/e2e/scenarios/variables-drift/...`
 - Create: `scripts/release/tests/e2e/scenarios/variables-unreadable/...`
-- Modify: `scripts/release/tests/e2e/record.sh` (add the variables endpoint)
+- Create: `scripts/release/tests/e2e/scenarios/obs-refused/...`
+- Modify: `scripts/release/tests/e2e/record.sh` (synthesise the variables fixtures)
 
-- [ ] **Step 1: Extend the recorder**
+- [ ] **Step 1: Extend the recorder — synthesised, not captured**
+
+Repository variables need `actions:read`, which an anonymous request does
+not have, so capturing them would only ever record a 403. They are
+synthesised instead. This lives inside `record.sh` rather than beside it
+so that re-recording regenerates them; a hand-written fixture that
+`record.sh` did not know about would be silently destroyed the next time
+somebody refreshed the base.
 
 Append to `record.sh` before the final `echo`:
 
 ```bash
-echo "repository variables"
-for component in "${COMPONENTS[@]}"; do
-  capture "$GITHUB/repos/$ORG/$component/actions/variables?per_page=100" \
-          "$OUT/api.github.com/repos/$ORG/$component/actions/variables"
-done
-```
-
-Re-record. Anonymous requests will return 403, so this writes `.403` sidecars — which is exactly the unreadable case. Hand-write the readable base instead:
-
-```bash
-for component in web wanda checks agent helm-charts; do
-  case "$component" in
-    web) package=trento-web ;;
-    wanda) package=trento-wanda ;;
-    checks) package=trento-checks ;;
-    agent) package=trento-agent ;;
-    helm-charts) package=trento-server-helm ;;
-  esac
-  target="scripts/release/tests/e2e/recorded/api.github.com/repos/trento-project/$component/actions/variables"
-  rm -f "$target".403
+# Repository variables are not captured. Reading them needs actions:read,
+# so an anonymous request records only a 403 - which is a scenario, not a
+# base. The agreeing case is written out here from the same package names
+# release/components.yaml uses, so the drift check has something to agree
+# with. The 403 lives in scenarios/variables-unreadable/.
+echo "repository variables (synthesised)"
+for index in "${!COMPONENTS[@]}"; do
+  component="${COMPONENTS[$index]}"
+  package="${PACKAGES[$index]}"
+  target="$OUT/api.github.com/repos/$ORG/$component/actions/variables"
+  mkdir -p "$(dirname "$target")"
+  rm -f "$target".401 "$target".403 "$target".404
   cat > "$target.json" <<JSON
 {"total_count":2,"variables":[
   {"name":"OBS_PACKAGE","value":"$package"},
   {"name":"OBS_ENABLED","value":"true"}
 ]}
 JSON
+  echo "  syn $component -> $package"
 done
+```
+
+`COMPONENTS` and `PACKAGES` are the parallel arrays already declared at the
+top of `record.sh`, so the package names come from one place. Indexed
+arrays work on bash 3.2, which is what macOS ships.
 ```
 
 - [ ] **Step 2: Create the drift and unreadable scenarios**
@@ -2992,49 +3004,109 @@ teardown_file() {
   stop_server
 }
 
-@test "a dry run needs no credentials and writes nothing" {
-  run env GITHUB_TOKEN= GH_TOKEN= \
+# OBS_USER and OBS_PASS are set so obs_credentials() does not fall back
+# to reading the developer's own ~/.config/osc/oscrc, which would make
+# the run depend on whoever is running it. The stub ignores the header.
+fork_obs() {
+  run env GITHUB_TOKEN= GH_TOKEN= OBS_USER=tester OBS_PASS=secret \
     "$PYTHON" "$REPO_ROOT/scripts/release/fork_obs.py" \
     --components "$E2E_TMP/components.yaml" \
     --obs-api "http://127.0.0.1:$E2E_PORT" \
-    --git-owner someone
+    --git-owner someone "$@"
+}
+
+@test "a dry run finds the scmsynced packages and plans the copy" {
+  fork_obs
   [ "$status" -eq 0 ]
-  [[ "$output" != *"OBS_USER"* ]] || [[ "$output" == *"gh variable set"* ]]
+  [[ "$output" == *"change(s) pending"* ]]
+  assert_no_misses
+}
+
+@test "a dry run is pending, never applied" {
+  fork_obs
+  [[ "$output" != *"applied"* ]]
 }
 
 @test "a dry run prints the variables the fork needs" {
-  run env GITHUB_TOKEN= GH_TOKEN= \
+  fork_obs
+  [[ "$output" == *"gh variable set OBS_PROJECT_STABLE --body home:someone:"* ]]
+  [[ "$output" == *"gh variable set OBS_PROJECT_ROLLING --body home:someone:"* ]]
+}
+```
+
+`--git-owner someone` sets the fork owner; the project names come from
+`target_projects(user, prefix)`, which is `home:{user}:{prefix}` — and
+`user` there is the OBS user, `tester`. If the assertion fails on
+`home:someone:`, read `fork_obs.py:352` and assert on whichever of the two
+names it actually uses. Do not weaken the assertion to a substring that
+would pass either way.
+
+- [ ] **Step 5: The refusal, in its own file**
+
+`scripts/release/tests/e2e/fork-obs-refused.bats`:
+
+```bash
+#!/usr/bin/env bats
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+load helpers
+
+setup_file() {
+  load helpers
+  start_server obs-refused
+}
+
+teardown_file() {
+  load helpers
+  stop_server
+}
+
+@test "a refusal is reported as a refusal, not as nothing to do" {
+  # The distinction that cost a debugging session. A package nobody is
+  # allowed to read looks exactly like a package that is not scmsynced,
+  # so discover() turns the first 401 into a refusal rather than
+  # reporting "nothing to copy" and exiting as though the work were done.
+  run env GITHUB_TOKEN= GH_TOKEN= OBS_USER=tester OBS_PASS=secret \
     "$PYTHON" "$REPO_ROOT/scripts/release/fork_obs.py" \
     --components "$E2E_TMP/components.yaml" \
     --obs-api "http://127.0.0.1:$E2E_PORT" \
     --git-owner someone
-  [[ "$output" == *"OBS_PROJECT_STABLE"* ]]
-  [[ "$output" == *"OBS_PROJECT_ROLLING"* ]]
-}
-
-@test "a refusal is reported as a refusal, not as nothing to do" {
-  # The distinction that cost a debugging session: IBS answers 404 on
-  # /public where OBS answers 401, so an unauthenticated run looks
-  # like an empty one unless the refusal is surfaced.
-  mkdir -p "$E2E_TMP/refused/api.refused.invalid"
-  run env GITHUB_TOKEN= GH_TOKEN= \
-    "$PYTHON" "$REPO_ROOT/scripts/release/fork_obs.py" \
-    --components "$E2E_TMP/components.yaml" \
-    --obs-api "http://127.0.0.1:1" \
-    --git-owner someone
   [ "$status" -ne 0 ]
+  [[ "$output" == *"answered 401"* ]]
+  [[ "$output" == *"Set OBS_USER and OBS_PASS"* ]]
+  [[ "$output" != *"nothing to copy"* ]]
 }
 ```
 
-- [ ] **Step 5: Run every bats file**
+Create the scenario by putting a `.401` sidecar on the first obsinfo path
+`discover` reads. `packages_of(config)` iterates the components in file
+order and `projects.values()` gives stable then rolling, so the first read
+is web's, in `devel:sap:trento`:
+
+```bash
+mkdir -p "scripts/release/tests/e2e/scenarios/obs-refused/api.opensuse.org/public/source/devel:sap:trento/trento-web"
+touch "scripts/release/tests/e2e/scenarios/obs-refused/api.opensuse.org/public/source/devel:sap:trento/trento-web/_scmsync.obsinfo.401"
+```
+
+`read_source` retries `/source/...` when it has credentials and gets a
+401, so shadow that path too or the retry falls through to the base
+recording and the refusal never surfaces:
+
+```bash
+mkdir -p "scripts/release/tests/e2e/scenarios/obs-refused/api.opensuse.org/source/devel:sap:trento/trento-web"
+touch "scripts/release/tests/e2e/scenarios/obs-refused/api.opensuse.org/source/devel:sap:trento/trento-web/_scmsync.obsinfo.401"
+```
+
+- [ ] **Step 6: Run every bats file**
 
 ```bash
 bats scripts/release/tests/e2e/*.bats
 ```
 
-Expected: all pass. The `fork-obs` assertions are looser than the rest because that script's output depends on what the recording contains for the OBS source paths — if a test fails, read the actual output and tighten the assertion to what it genuinely proves rather than deleting it.
+Expected: all pass. If a `fork-obs` assertion fails, read the actual output and tighten the assertion to what it genuinely proves — do not replace it with a disjunction that would pass either way.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add scripts/release/tests/e2e/
