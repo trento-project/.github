@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# The Trento release train.
+#
+# This file is the single door to a release. Editing it in a pull
+# request is how a release is requested; the diff of that pull request
+# is the release scope. On merge it returns to an empty train.
+#
+# How to use it:
+#
+#   1. Run the "Propose release" workflow. It inspects every component
+#      repository, resolves a bump type from the labels on the pull
+#      requests merged since the last tag, and opens a pull request that
+#      fills in `components` below with concrete versions.
+#   2. Edit the proposal: change versions, delete components you do not
+#      want to release, set `branch: release` for a hotfix.
+#   3. Get the pull request approved and add the `release/go` label.
+#      Until both are true the orchestrator only posts a dry-run plan.
+#   4. The orchestrator opens the VERSION bump pull requests in the
+#      component repositories, tier by tier, and merges this pull
+#      request once every component is released.
+#
+# Fields per component:
+#
+#   version   Required. The semantic version to release. Must be greater
+#             than the component's latest published release.
+#   branch    Optional, defaults to `main`. Use `release` for a hotfix;
+#             hotfixes are restricted to patch bumps.
+#
+# `train` is informational and follows release.adoc: the X.Y of the web
+# component names the release as a whole.
+
+train: null
+
+components: {}

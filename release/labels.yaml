@@ -1,0 +1,89 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Canonical label set for every Trento component repository.
+#
+# Applied by .github/workflows/labels-sync.yaml. The sync is additive
+# and never deletes labels it does not know about, so repositories keep
+# their own extras (`elixir`, `javascript`, `check`, ...).
+#
+# The category names below are not free-form: release-drafter groups the
+# changelog by them, using the mapping in release_drafter_main.yaml.
+# A label that drifts from that mapping silently drops its pull requests
+# out of the release notes, which is exactly what happened to `tech debt`
+# in web (76 pull requests) and `breakingchange` in wanda.
+
+# Colours are quoted on purpose: YAML reads an unquoted 5319e7 as the
+# float 5.319e10.
+#
+# Renames are applied before the sync. A GitHub label rename preserves
+# every existing assignment, so no pull request loses its categorisation.
+renames:
+  - repo: web
+    from: tech debt
+    to: tech-debt
+  - repo: wanda
+    from: breakingchange
+    to: breaking
+
+labels:
+  # --- release-drafter categories -----------------------------------
+  - name: enhancement
+    color: 'a2eeef'
+    description: New feature or request
+  - name: bug
+    color: 'd73a4a'
+    description: Something is not working
+  - name: chore
+    color: 'fef2c0'
+    description: Routine maintenance
+  - name: ci
+    color: 'fef2c0'
+    description: Continuous integration and tooling
+  - name: tech-debt
+    color: 'fbca04'
+    description: Technical debt
+  - name: dependencies
+    color: '0366d6'
+    description: Dependency updates
+
+  # --- semantic version intent --------------------------------------
+  # Read by the release proposer to decide the next version. They are
+  # an override: without one, a pull request counts as a patch, or as a
+  # minor if it carries `enhancement`.
+  - name: major
+    color: 'b60205'
+    description: Forces a major version bump in the next release
+  - name: breaking
+    color: 'b60205'
+    description: Breaking change; forces a major version bump
+  - name: minor
+    color: '0e8a16'
+    description: Forces a minor version bump in the next release
+  - name: patch
+    color: 'c2e0c6'
+    description: Forces a patch version bump in the next release
+
+  # --- release notes control ----------------------------------------
+  - name: skip-release-notes
+    color: 'ededed'
+    description: Leave this pull request out of the release notes
+  - name: backport-as-hotfix
+    color: 'e99695'
+    description: Ship this on the release branch as a hotfix
+
+  # --- release orchestration ----------------------------------------
+  # Live on the manifest pull request in this repository, but are synced
+  # everywhere so the bump pull requests can carry them too.
+  - name: release
+    color: '5319e7'
+    description: Part of a release
+  - name: release/go
+    color: '5319e7'
+    description: Approved; the orchestrator may open the bump pull requests
+  - name: release/blocked
+    color: '000000'
+    description: The cascade is waiting on an upstream component
+  - name: release/done
+    color: '0e8a16'
+    description: Every component of this train has been released

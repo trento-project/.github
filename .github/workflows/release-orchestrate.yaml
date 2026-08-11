@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Step two of a release: cascade the manifest into version bump pull
+# requests, one tier at a time, and merge the manifest pull request when
+# every component has been released.
+#
+# The reconciler is stateless: each run derives the whole state of the
+# train from GitHub and GHCR and does the next thing. A missed run, a
+# rerun and two concurrent runs all converge, so the schedule is a
+# safety net rather than the mechanism.
+#
+# The component repositories are never notified and need no changes.
+
+name: Orchestrate release
+
+on:
+  pull_request:
+    paths:
+      - release/manifest.yaml
+    types: [opened, reopened, synchronize, labeled, unlabeled, ready_for_review]
+  schedule:
+    # Every fifteen minutes while a train is open. With no manifest pull
+    # request the run is a no-op costing three API calls.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Manifest pull request number, empty to discover it
+        type: string
+        default: ""
+      dry_run:
+        description: Report only, do not open or merge anything
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  # One reconciler at a time. Two would race to open the same bump.
+  group: release-orchestrate
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    # A fork cannot be trusted with the orchestrator token, and would not
+    # be given it anyway. Manifest pull requests come from this
+    # repository.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          # On a pull request event the manifest to act on is the one in
+          # the pull request, not the one on main.
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --disable-pip-version-check \
+            -r scripts/release/requirements.txt
+
+      - name: Reconcile
+        env:
+          # Needs to open pull requests in the component repositories, so
+          # the built-in token is not enough.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_ORCHESTRATOR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          pr="${{ github.event.pull_request.number || inputs.pr }}"
+          arguments=""
+          [ -n "$pr" ] && arguments="--pr $pr"
+
+          # A dispatch is dry unless asked otherwise. Everything else
+          # runs for real: reconcile.py still refuses to act until the
+          # manifest pull request is approved and labelled release/go.
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] || \
+             [ "${{ inputs.dry_run }}" = "false" ]; then
+            arguments="$arguments --execute"
+          fi
+
+          # shellcheck disable=SC2086
+          .venv/bin/python scripts/release/reconcile.py $arguments \
+            | tee -a "$GITHUB_STEP_SUMMARY"

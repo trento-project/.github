@@ -1,0 +1,118 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Step one of a release: work out what the next versions should be and
+# open the manifest pull request that asks for them.
+#
+# Nothing here decides anything irreversibly. The proposal is a pull
+# request; a human edits it, approves it and labels it `release/go`,
+# and only then does release-orchestrate.yaml touch the component
+# repositories.
+
+name: Propose release
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to release from
+        type: choice
+        options: [main, release]
+        default: main
+      only:
+        description: Comma separated components, empty for all
+        type: string
+        default: ""
+      dry_run:
+        description: Only print the proposal, do not open a pull request
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  propose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --disable-pip-version-check \
+            -r scripts/release/requirements.txt
+
+      - name: Build the proposal
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          only=""
+          for component in $(echo "${{ inputs.only }}" | tr ',' ' '); do
+            only="$only --only $component"
+          done
+          # shellcheck disable=SC2086
+          .venv/bin/python scripts/release/propose.py \
+            --branch "${{ inputs.branch }}" $only \
+            -o release/manifest.yaml
+
+      - name: Report
+        run: |
+          {
+            echo "## Proposed release train"
+            echo
+            echo '```yaml'
+            sed -n '/^train:/,$p' release/manifest.yaml
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open the manifest pull request
+        if: ${{ inputs.dry_run == false }}
+        env:
+          # A token that may open pull requests here. The orchestrator
+          # needs a wider one; this step does not.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet -- release/manifest.yaml; then
+            echo "Nothing to release." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          train="$(sed -n 's/^train: *//p' release/manifest.yaml)"
+          branch="release-train/${train:-$(date -u +%Y%m%d)}"
+
+          git config user.name "trento-bot"
+          git config user.email "trento-bot@users.noreply.github.com"
+          git switch -c "$branch"
+          git add release/manifest.yaml
+          git commit -m "Propose release train ${train}"
+          git push --force origin "$branch"
+
+          existing="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')"
+          if [ -n "$existing" ]; then
+            echo "Updated https://github.com/${{ github.repository }}/pull/$existing" \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          gh pr create \
+            --head "$branch" \
+            --base main \
+            --title "Release train ${train}" \
+            --label release \
+            --body "$(cat <<'BODY'
+          Proposed by the **Propose release** workflow from the labels on
+          everything merged since each component's last release.
+
+          1. Edit `release/manifest.yaml`: change versions, delete components
+             you do not want to release, set `branch: release` for a hotfix.
+          2. Get this pull request approved.
+          3. Add the `release/go` label.
+
+          Until both the approval and the label are in place the orchestrator
+          only reports a plan. Once they are, it opens the version bump pull
+          requests tier by tier and merges this pull request when every
+          component has been released.
+          BODY
+          )"

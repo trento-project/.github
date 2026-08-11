@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Give every component repository the same release labels.
+#
+# This matters more than tidiness: release-drafter categorises the
+# changelog by label and resolves the next version by label, so a label
+# that differs by a hyphen in one repository silently drops its pull
+# requests out of the release notes. `tech debt` in web did exactly
+# that.
+#
+# The sync is additive. Labels it does not know about are never touched,
+# so repositories keep their own.
+
+name: Sync labels
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - release/labels.yaml
+  pull_request:
+    paths:
+      - release/labels.yaml
+  workflow_dispatch:
+    inputs:
+      only:
+        description: Comma separated components, empty for all
+        type: string
+        default: ""
+      dry_run:
+        description: Report the differences without applying them
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --disable-pip-version-check \
+            -r scripts/release/requirements.txt
+
+      - name: Sync
+        env:
+          # Writing labels in the component repositories needs a token
+          # that reaches them.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_ORCHESTRATOR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          only=""
+          for component in $(echo "${{ inputs.only }}" | tr ',' ' '); do
+            only="$only --only $component"
+          done
+
+          # A pull request only ever reports. A push to main applies,
+          # because the file was reviewed on the way in.
+          execute=""
+          if [ "${{ github.event_name }}" = "push" ] || \
+             [ "${{ inputs.dry_run }}" = "false" ]; then
+            execute="--execute"
+          fi
+
+          # shellcheck disable=SC2086
+          .venv/bin/python scripts/release/sync_labels.py $only $execute \
+            2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
