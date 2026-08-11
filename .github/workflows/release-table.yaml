@@ -1,0 +1,129 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Keep the release status table in profile/README.md true.
+#
+# Every number in it comes from the GitHub, OBS and SCC public APIs at
+# run time. None of the three needs credentials, and no version, package
+# or SLES service pack is named by hand anywhere: a new service pack
+# appears in the table on its own once SCC ships a Trento package for
+# it.
+
+name: Release status table
+
+on:
+  schedule:
+    # Daily. OBS and SCC move on their own schedule, not ours.
+    - cron: "17 5 * * *"
+  push:
+    branches: [main]
+    paths:
+      - release/components.yaml
+      - scripts/release/**
+  pull_request:
+    paths:
+      - release/components.yaml
+      - scripts/release/**
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Render the table but do not commit it
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  # A fork renders its own fork's table rather than trento-project's.
+  TRENTO_GITHUB_ORG: ${{ github.repository_owner }}
+  TRENTO_SELF_REPO: ${{ github.event.repository.name }}
+  # The two organisation variables the component release workflows build
+  # their obs-sync matrix from, so the table reads the projects actually
+  # published to rather than a second copy of their names. Empty where
+  # they are not set, and components.yaml supplies the values instead.
+  TRENTO_OBS_PROJECT_STABLE: ${{ vars.OBS_PROJECT_STABLE }}
+  TRENTO_OBS_PROJECT_ROLLING: ${{ vars.OBS_PROJECT_ROLLING }}
+
+concurrency:
+  group: release-table-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --disable-pip-version-check \
+            -r scripts/release/requirements.txt
+
+      - name: Collect
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .venv/bin/python scripts/release/collect_state.py -o state.json
+
+      - name: Render
+        run: |
+          .venv/bin/python scripts/release/render_table.py \
+            --state state.json --inject profile/README.md
+          {
+            echo "## Release status"
+            echo
+            .venv/bin/python scripts/release/render_table.py --state state.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit
+        if: >-
+          github.event_name != 'pull_request' &&
+          (github.event_name != 'workflow_dispatch' || inputs.dry_run == false)
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
+        with:
+          file_pattern: profile/README.md
+          commit_message: Update the release status table
+          commit_user_name: trento-bot
+          commit_user_email: trento-bot@users.noreply.github.com
+
+  # The OBS package names in components.yaml are also the OBS_PACKAGE
+  # variable of each component repository, where obs-sync.yaml reads
+  # them. If the two ever part company the table reports a package
+  # nothing publishes to, and says "not submitted" about it forever.
+  #
+  # Separate from the table itself, which stays credential free. Without
+  # a token that can read the variables there is nothing to compare and
+  # the check says so and passes.
+  variables:
+    name: Check the repository variables
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --disable-pip-version-check \
+            -r scripts/release/requirements.txt
+
+      - name: Check
+        env:
+          GITHUB_TOKEN: ${{ secrets.TRENTOBOT_GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          # Without this the exit status is tee's, and drift reports
+          # success.
+          set -o pipefail
+
+          {
+            echo "## Repository variables"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # `|| status=` and not a bare call: the step runs under `set
+          # -e`, so drift would exit here and leave the fence open.
+          status=0
+          .venv/bin/python scripts/release/check_variables.py \
+            2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $status
