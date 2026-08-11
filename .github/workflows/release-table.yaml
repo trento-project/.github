@@ -34,6 +34,11 @@ on:
 permissions:
   contents: write
 
+env:
+  # A fork renders its own fork's table rather than trento-project's.
+  TRENTO_GITHUB_ORG: ${{ github.repository_owner }}
+  TRENTO_SELF_REPO: ${{ github.event.repository.name }}
+
 concurrency:
   group: release-table-${{ github.ref }}
   cancel-in-progress: true

@@ -38,6 +38,14 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  # The orchestrator is the one thing here that writes to other
+  # repositories, so it writes to the repositories of whoever is running
+  # it. A fork can be given a token of its own and rehearse the whole
+  # cascade without ever reaching trento-project.
+  TRENTO_GITHUB_ORG: ${{ github.repository_owner }}
+  TRENTO_SELF_REPO: ${{ github.event.repository.name }}
+
 concurrency:
   # One reconciler at a time. Two would race to open the same bump.
   group: release-orchestrate

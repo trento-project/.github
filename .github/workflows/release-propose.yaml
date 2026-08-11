@@ -32,6 +32,13 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  # Act on the repositories of whoever is running this. For
+  # trento-project this is exactly what components.yaml says; on a fork
+  # it is what keeps the rehearsal inside the fork.
+  TRENTO_GITHUB_ORG: ${{ github.repository_owner }}
+  TRENTO_SELF_REPO: ${{ github.event.repository.name }}
+
 jobs:
   propose:
     runs-on: ubuntu-24.04
@@ -70,9 +77,11 @@ jobs:
       - name: Open the manifest pull request
         if: ${{ inputs.dry_run == false }}
         env:
-          # A token that may open pull requests here. The orchestrator
-          # needs a wider one; this step does not.
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The built-in token would do to open the pull request, but a
+          # pull request it opens triggers no workflow, so the
+          # orchestrator would not see the manifest until its next
+          # quarter-hourly run.
+          GH_TOKEN: ${{ secrets.RELEASE_ORCHESTRATOR_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           if git diff --quiet -- release/manifest.yaml; then
             echo "Nothing to release." >> "$GITHUB_STEP_SUMMARY"
