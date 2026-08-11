@@ -127,21 +127,28 @@ def replace_yaml_value(text: str, dotted_key: str, value: str) -> str:
     if not isinstance(node, dict) or parts[-1] not in node:
         raise MissingKey(dotted_key)
 
+    # A mapping or sequence parses to a dict or list whether it is written
+    # as a block or in flow style (`tags: [a, b]` is exactly as much a
+    # list as an indented `- a`), and flow style puts its mark on the
+    # key's own line, so the line check below cannot see it - the regex
+    # matched `[a, b]` or `{tag: 1.2.3}` just as happily as it matched
+    # `1.2.3`. Checking the parsed type first closes that off before any
+    # position work happens.
+    if isinstance(node[parts[-1]], (dict, list)):
+        raise MissingKey(f"{dotted_key}: value is not a plain scalar")
+
     try:
         key_line, _ = node.lc.key(parts[-1])
         line_number, column = node.lc.value(parts[-1])
     except (AttributeError, KeyError, TypeError) as error:
         raise MissingKey(f"{dotted_key}: no source position") from error
 
-    # A block mapping or sequence is indented below the key, so its value
-    # mark is never on the key's own line - and the regex cannot tell by
-    # itself, since a sequence item's `- 1.2.3` text matches it just as
-    # happily as a real scalar would. The same off-line mark shows up for
-    # an implicit null (`key:` with nothing after it): there is no token
-    # to place a mark on, so ruamel reports the mark of whatever follows,
-    # which is a different line, or one past the end of the document.
-    # Refusing anything off the key's line rejects both without needing
-    # to special-case them.
+    # An implicit null (`key:` with nothing after it) has no token of its
+    # own, so ruamel marks it with the position of whatever comes next -
+    # a different line, or one past the end of the document if the key is
+    # last. An alias (`tag: *b`) is marked at its anchor's definition,
+    # which can be a different line entirely too. Either way, a value
+    # mark off the key's own line is not a place this function can edit.
     if line_number != key_line:
         raise MissingKey(f"{dotted_key}: value is not a plain scalar")
 
@@ -152,6 +159,15 @@ def replace_yaml_value(text: str, dotted_key: str, value: str) -> str:
         raise MissingKey(f"{dotted_key}: value is not a plain scalar")
 
     quote = match.group("quote")
+    if not quote and match.end() == 0:
+        # An implicit null can still land on the key's own line when a
+        # comment follows it (`key:  # note`): the mark sits in the
+        # whitespace before the comment, so the line check above does not
+        # catch it. A quoted empty string (`tag: ""`) also matches
+        # zero-width for its value, but its quote group is not empty -
+        # this only rejects the unquoted, tokenless case.
+        raise MissingKey(f"{dotted_key}: value is not a plain scalar")
+
     head = line[:column]
     tail = line[column + match.end() :]
     lines[line_number] = f"{head}{quote}{value}{quote}{tail}"

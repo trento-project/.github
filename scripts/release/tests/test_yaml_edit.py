@@ -77,3 +77,26 @@ def test_a_non_scalar_value_raises():
 def test_the_file_keeps_its_final_newline_state():
     without = "image:\n  tag: 1.2.3"
     assert replace_yaml_value(without, "image.tag", "1.3.0") == "image:\n  tag: 1.3.0"
+
+
+def test_a_flow_sequence_raises_without_touching_the_document():
+    original = "tags: [a, b]\nafter: value\n"
+    with pytest.raises(MissingKey):
+        replace_yaml_value(original, "tags", "1.3.0")
+    assert original == "tags: [a, b]\nafter: value\n"
+
+
+def test_a_flow_mapping_raises_without_touching_the_document():
+    original = "spec: {tag: 1.2.3}\nafter: value\n"
+    with pytest.raises(MissingKey):
+        replace_yaml_value(original, "spec", "1.3.0")
+    assert original == "spec: {tag: 1.2.3}\nafter: value\n"
+
+
+def test_an_implicit_null_with_a_same_line_comment_raises():
+    # The mark for this null sits on the key's own line, in the
+    # whitespace before the comment - the case the other implicit-null
+    # guard (a mark on a different line) does not cover.
+    original = "tag:  # pinned later\n"
+    with pytest.raises(MissingKey):
+        replace_yaml_value(original, "tag", "1.3.0")
