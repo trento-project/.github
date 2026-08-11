@@ -97,8 +97,13 @@ def get_dotted(data: Any, dotted_key: str) -> Any:
     return node
 
 
-# A plain scalar, optionally quoted, up to a comment or end of line.
-_SCALAR_RE = re.compile(r"""^(?P<quote>['"]?)(?P<value>[^'"#\n]*)(?P=quote)""")
+# A plain scalar, optionally quoted, up to a comment or end of line. The
+# value is non-greedy and the comment/end-of-line is a lookahead rather
+# than part of the match: YAML only starts a comment at a `#` preceded by
+# whitespace, so that whitespace is the tail's, not the value's. Consuming
+# it here would leave a bumped `1.2.3  # pinned` as `1.3.0# pinned`, which
+# is a different, un-commented scalar.
+_SCALAR_RE = re.compile(r"""^(?P<quote>['"]?)(?P<value>[^'"#\n]*?)(?P=quote)(?=[ \t]*(?:#|$))""")
 
 
 def replace_yaml_value(text: str, dotted_key: str, value: str) -> str:
@@ -123,9 +128,22 @@ def replace_yaml_value(text: str, dotted_key: str, value: str) -> str:
         raise MissingKey(dotted_key)
 
     try:
+        key_line, _ = node.lc.key(parts[-1])
         line_number, column = node.lc.value(parts[-1])
     except (AttributeError, KeyError, TypeError) as error:
         raise MissingKey(f"{dotted_key}: no source position") from error
+
+    # A block mapping or sequence is indented below the key, so its value
+    # mark is never on the key's own line - and the regex cannot tell by
+    # itself, since a sequence item's `- 1.2.3` text matches it just as
+    # happily as a real scalar would. The same off-line mark shows up for
+    # an implicit null (`key:` with nothing after it): there is no token
+    # to place a mark on, so ruamel reports the mark of whatever follows,
+    # which is a different line, or one past the end of the document.
+    # Refusing anything off the key's line rejects both without needing
+    # to special-case them.
+    if line_number != key_line:
+        raise MissingKey(f"{dotted_key}: value is not a plain scalar")
 
     lines = text.splitlines(keepends=True)
     line = lines[line_number]
