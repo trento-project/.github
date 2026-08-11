@@ -60,6 +60,10 @@ jobs:
           # that reaches them.
           GITHUB_TOKEN: ${{ secrets.RELEASE_ORCHESTRATOR_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
+          # Without this the exit status is tee's, and a sync that could
+          # not reach a repository reports success.
+          set -o pipefail
+
           only=""
           for component in $(echo "${{ inputs.only }}" | tr ',' ' '); do
             only="$only --only $component"

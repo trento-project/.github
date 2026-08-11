@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import urllib.error
 import urllib.parse
 from pathlib import Path
 
@@ -140,16 +141,27 @@ def main(argv: list[str] | None = None) -> int:
         repos.append(SELF_REPO)
 
     total = 0
+    unreachable: list[str] = []
     for repo in repos:
         log(f"{repo}")
         applicable = [rename for rename in renames if rename["repo"] in (repo, "*")]
-        changes = sync_repo(client, repo, labels, applicable)
+        try:
+            changes = sync_repo(client, repo, labels, applicable)
+        except urllib.error.HTTPError as error:
+            # One repository the token cannot reach should not hide the
+            # state of the other seven, and the reason is worth naming
+            # rather than tracing.
+            log(f"  ! {repo}: {error.code} {error.reason}")
+            unreachable.append(repo)
+            continue
         total += len(changes)
         if not changes:
             log("  already in sync")
 
     print(f"{total} label change(s) {'applied' if args.execute else 'pending'}", file=sys.stdout)
-    return 0
+    if unreachable:
+        print(f"could not reach {', '.join(unreachable)}", file=sys.stdout)
+    return 1 if unreachable else 0
 
 
 if __name__ == "__main__":

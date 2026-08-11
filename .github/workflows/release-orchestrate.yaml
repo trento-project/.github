@@ -79,6 +79,10 @@ jobs:
           # the built-in token is not enough.
           GITHUB_TOKEN: ${{ secrets.RELEASE_ORCHESTRATOR_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
+          # Without this the exit status is tee's, and a reconcile that
+          # found a problem reports success.
+          set -o pipefail
+
           pr="${{ github.event.pull_request.number || inputs.pr }}"
           arguments=""
           [ -n "$pr" ] && arguments="--pr $pr"
