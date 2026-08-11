@@ -31,6 +31,7 @@ version-resolver:
   minor:
     labels:
       - feature
+      - enhancement
       - minor
   patch:
     labels:
@@ -39,7 +40,7 @@ version-resolver:
   default: patch
 exclude-labels:
   - skip-release-notes
-  - released-as-hotfix
+  - backport-as-hotfix
 filter-by-commitish: true
 template: |
   ## What's Changed

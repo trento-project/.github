@@ -31,12 +31,15 @@ version-resolver:
   minor:
     labels:
       - feature
+      - enhancement
       - minor
   patch:
     labels:
       - patch
       - bug
   default: patch
+# `backport-as-hotfix` is deliberately not excluded here, unlike on main:
+# on the release branch those pull requests are the release.
 exclude-labels:
   - skip-release-notes
 template: |
