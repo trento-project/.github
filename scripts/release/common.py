@@ -37,6 +37,11 @@ USER_AGENT = "trento-release-tooling"
 HTTP_RETRIES = 3
 HTTP_BACKOFF = 2.0
 
+# This repository, where the manifest and the orchestration labels live.
+# Overridable because a fork of `.github` cannot itself be called
+# `.github`, and the whole cascade is worth rehearsing on forks first.
+SELF_REPO = os.environ.get("TRENTO_SELF_REPO") or ".github"
+
 
 def log(message: str) -> None:
     print(message, file=sys.stderr)
@@ -372,11 +377,18 @@ def load_config(path: Path = COMPONENTS_FILE) -> Config:
             version_file=spec.get("version_file", defaults.get("version_file", "VERSION")),
         )
 
+    # Overridable so the whole cascade can be rehearsed against a set of
+    # forks before it is ever pointed at trento-project. Nothing else
+    # needs to change: every repository, package and image name is
+    # derived from the component list.
+    org = os.environ.get("TRENTO_GITHUB_ORG") or sources["github"]["org"]
+    ghcr_namespace = os.environ.get("TRENTO_GHCR_NAMESPACE") or sources["ghcr"]["namespace"]
+
     return Config(
         raw=raw,
         components=components,
         github_api=sources["github"]["api"].rstrip("/"),
-        github_org=sources["github"]["org"],
+        github_org=org,
         obs_api=sources["obs"]["api"].rstrip("/"),
         obs_projects=dict(sources["obs"]["projects"]),
         scc_api=scc["api"].rstrip("/"),
@@ -384,7 +396,7 @@ def load_config(path: Path = COMPONENTS_FILE) -> Config:
         scc_architectures=list(scc.get("architectures") or ["x86_64"]),
         scc_max_products_per_major=int(scc.get("max_products_per_major", 3)),
         ghcr_registry=sources["ghcr"]["registry"],
-        ghcr_namespace=sources["ghcr"]["namespace"],
+        ghcr_namespace=ghcr_namespace,
         release_branches=list(raw.get("release_branches", ["main", "release"])),
     )
 

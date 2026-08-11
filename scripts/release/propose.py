@@ -80,6 +80,29 @@ class Resolver:
         return max(kinds, key=lambda kind: RANK[kind]) if kinds else self.default
 
 
+class Versions:
+    """The current version of each component, read once.
+
+    Both the direct proposals and the dependents dragged in afterwards
+    need it, and a component with no parseable version file should say
+    so once rather than once per caller.
+    """
+
+    def __init__(self, github: GitHub, branch: str):
+        self.github = github
+        self.branch = branch
+        self._cache: dict[str, Version | None] = {}
+
+    def of(self, component: Component) -> Version | None:
+        if component.name not in self._cache:
+            text = self.github.file_text(component.repo, component.version_file, self.branch)
+            version = Version.parse_or_none((text or "").strip())
+            if version is None:
+                log(f"  ! {component.name}: no usable {component.version_file} on {self.branch}")
+            self._cache[component.name] = version
+        return self._cache[component.name]
+
+
 @dataclass
 class Proposal:
     name: str
@@ -103,12 +126,10 @@ def merged_pulls(github: GitHub, component: Component, branch: str, since: str |
 
 
 def propose_component(
-    github: GitHub, config: Config, component: Component, branch: str, resolver: Resolver
+    github: GitHub, versions: Versions, component: Component, branch: str, resolver: Resolver
 ) -> Proposal | None:
-    current_text = github.file_text(component.repo, component.version_file, branch)
-    current = Version.parse_or_none((current_text or "").strip())
+    current = versions.of(component)
     if current is None:
-        log(f"  ! {component.name}: no usable {component.version_file} on {branch}")
         return None
 
     since = github.commit_date(component.repo, str(current))
@@ -149,7 +170,7 @@ def propose_component(
 
 
 def pull_in_dependents(
-    github: GitHub, config: Config, proposals: dict[str, Proposal], branch: str
+    versions: Versions, config: Config, proposals: dict[str, Proposal], branch: str
 ) -> None:
     """Re-cut anything that pins a component being released.
 
@@ -176,10 +197,8 @@ def pull_in_dependents(
             pull_count = existing.pull_count
             label_counts = existing.label_counts
         else:
-            current_text = github.file_text(component.repo, component.version_file, branch)
-            parsed = Version.parse_or_none((current_text or "").strip())
+            parsed = versions.of(component)
             if parsed is None:
-                log(f"  ! {name}: no usable {component.version_file} on {branch}")
                 continue
             current, pull_count, label_counts = parsed, 0, {}
 
@@ -268,6 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     github = GitHub(config.github_api, config.github_org, dry_run=True)
+    versions = Versions(github, args.branch)
     selected = args.only or list(config.components)
 
     proposals: dict[str, Proposal] = {}
@@ -278,16 +298,21 @@ def main(argv: list[str] | None = None) -> int:
         if not github.branch_exists(component.repo, args.branch):
             log(f"  {name}: no {args.branch} branch, skipped")
             continue
-        proposal = propose_component(github, config, component, args.branch, resolver)
+        if versions.of(component) is None:
+            continue
+        proposal = propose_component(github, versions, component, args.branch, resolver)
         if proposal is None:
             log(f"  {name}: nothing merged since its last release")
             continue
         proposals[name] = proposal
-        log(f"  {name}: {proposal.current} -> {proposal.version} ({proposal.kind}, {proposal.pull_count} pull requests)")
+        log(
+            f"  {name}: {proposal.current} -> {proposal.version} ({proposal.kind}, "
+            f"{proposal.pull_count} pull request{'' if proposal.pull_count == 1 else 's'})"
+        )
         for reason in proposal.reasons[:5]:
             log(f"      {reason}")
 
-    pull_in_dependents(github, config, proposals, args.branch)
+    pull_in_dependents(versions, config, proposals, args.branch)
     for name, proposal in proposals.items():
         if proposal.pulled_in_by:
             log(f"  {name}: {proposal.current} -> {proposal.version} (pins {', '.join(proposal.pulled_in_by)})")

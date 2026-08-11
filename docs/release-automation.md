@@ -124,6 +124,31 @@ python3 -m venv .venv && .venv/bin/pip install -r scripts/release/requirements.t
 .venv/bin/python scripts/release/sync_labels.py
 ```
 
+### Rehearsing on forks
+
+Three environment variables point the whole toolchain somewhere else, so
+the cascade can be run for real against a set of forks before it is ever
+run against `trento-project`:
+
+| | |
+| --- | --- |
+| `TRENTO_GITHUB_ORG` | the organisation or user holding the component repositories |
+| `TRENTO_SELF_REPO` | this repository, which cannot be called `.github` in a fork |
+| `TRENTO_GHCR_NAMESPACE` | where tier 2 looks for the images it pins |
+
+Nothing else changes: every repository, package and image name is
+derived from `components.yaml`.
+
+```bash
+env TRENTO_GITHUB_ORG=someone TRENTO_SELF_REPO=their-dot-github \
+    .venv/bin/python scripts/release/plan.py --manifest /tmp/manifest.yaml
+```
+
+A fork inherits tags but not releases, so `plan.py` skips its "ahead of
+the latest release" check there and the reconciler reads every component
+as unreleased until its bump pull request lands. That is the intended
+reading: on a fork nothing has been released.
+
 ## The status table
 
 `profile/README.md` carries a table of what is released where, between

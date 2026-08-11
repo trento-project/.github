@@ -41,6 +41,7 @@ from pathlib import Path
 from common import (
     COMPONENTS_FILE,
     MANIFEST_FILE,
+    SELF_REPO,
     Config,
     GitHub,
     ghcr_tag_exists,
@@ -54,7 +55,6 @@ GO_LABEL = "release/go"
 DONE_LABEL = "release/done"
 BLOCKED_LABEL = "release/blocked"
 MANIFEST_PATH = "release/manifest.yaml"
-SELF_REPO = ".github"
 
 STATE_ICON = {
     "released": "✅",

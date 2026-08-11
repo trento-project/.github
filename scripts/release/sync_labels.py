@@ -25,9 +25,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-from common import COMPONENTS_FILE, LABELS_FILE, GitHub, load_config, load_yaml, log
-
-SELF_REPO = ".github"
+from common import COMPONENTS_FILE, LABELS_FILE, SELF_REPO, GitHub, load_config, load_yaml, log
 
 
 def canonical(path: Path) -> tuple[list[dict], list[dict]]:
