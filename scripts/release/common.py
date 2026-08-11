@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from ruamel.yaml import YAML
+from ruamel.yaml.scalarstring import FoldedScalarString, LiteralScalarString
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RELEASE_DIR = REPO_ROOT / "release"
@@ -134,7 +135,37 @@ def replace_yaml_value(text: str, dotted_key: str, value: str) -> str:
     # matched `[a, b]` or `{tag: 1.2.3}` just as happily as it matched
     # `1.2.3`. Checking the parsed type first closes that off before any
     # position work happens.
-    if isinstance(node[parts[-1]], (dict, list)):
+    current = node[parts[-1]]
+    if isinstance(current, (dict, list)):
+        raise MissingKey(f"{dotted_key}: value is not a plain scalar")
+
+    # A block scalar (`tag: |`, `tag: |-`, `tag: >`, ...) parses to a
+    # LiteralScalarString or FoldedScalarString - both str subclasses, so
+    # the dict/list check above does not see them. Their value mark sits
+    # on the key's own line too (the block indicator itself is what the
+    # regex would match), but the value's real text is the indented
+    # line(s) that follow, not the indicator. Overwriting just that line
+    # would splice the new value onto "|" or ">" and orphan the
+    # continuation as if it were a sibling key. SingleQuotedScalarString
+    # and DoubleQuotedScalarString are ScalarString subclasses too, but
+    # they carry their whole value on the key's line, so they are left
+    # out of this check on purpose - refusing every ScalarString would
+    # break `tag: "1.2.3"`.
+    if isinstance(current, (LiteralScalarString, FoldedScalarString)):
+        raise MissingKey(f"{dotted_key}: value is not a plain scalar")
+
+    # An anchored value (`tag: &ref 1.2.3`) is still a plain scalar on
+    # the key's own line, so neither guard above catches it - but the
+    # regex matches "&ref 1.2.3" as one token and would delete the
+    # anchor definition along with the value, leaving every alias that
+    # points at it (`other: *ref`) referring to nothing. ScalarString
+    # instances always carry an `.anchor` attribute, anchored or not -
+    # `.anchor.value` is the anchor's name, and is None unless one was
+    # actually declared. A plain unquoted scalar, or any non-string
+    # scalar (int, bool, the implicit-null None), has no `.anchor`
+    # attribute at all, hence the getattr default.
+    anchor = getattr(current, "anchor", None)
+    if anchor is not None and anchor.value:
         raise MissingKey(f"{dotted_key}: value is not a plain scalar")
 
     try:

@@ -96,7 +96,37 @@ def test_a_flow_mapping_raises_without_touching_the_document():
 def test_an_implicit_null_with_a_same_line_comment_raises():
     # The mark for this null sits on the key's own line, in the
     # whitespace before the comment - the case the other implicit-null
-    # guard (a mark on a different line) does not cover.
-    original = "tag:  # pinned later\n"
+    # guard (a mark on a different line) does not cover. A sibling key
+    # follows so the mark actually lands on "tag"'s own line: a one-key
+    # document puts the mark one line past EOF instead, which the
+    # line-mismatch guard already catches before this one is reached.
+    original = "tag:  # pinned later\nafter: value\n"
     with pytest.raises(MissingKey):
         replace_yaml_value(original, "tag", "1.3.0")
+
+
+def test_a_block_literal_scalar_raises_without_touching_the_document():
+    # `tag: |` puts its value on the lines *below* the key, not in the
+    # column the regex would edit. Overwriting just the indicator line
+    # would leave "    1.2.3\n" orphaned as if it were a new sibling key.
+    original = "image:\n  tag: |\n    1.2.3\n  pullPolicy: Always\n"
+    with pytest.raises(MissingKey):
+        replace_yaml_value(original, "image.tag", "1.3.0")
+    assert original == "image:\n  tag: |\n    1.2.3\n  pullPolicy: Always\n"
+
+
+def test_a_folded_scalar_raises_without_touching_the_document():
+    original = "image:\n  tag: >\n    1.2.3\n  pullPolicy: Always\n"
+    with pytest.raises(MissingKey):
+        replace_yaml_value(original, "image.tag", "1.3.0")
+    assert original == "image:\n  tag: >\n    1.2.3\n  pullPolicy: Always\n"
+
+
+def test_an_anchored_value_raises_without_touching_the_document():
+    # The regex would match "&ref 1.2.3" as the value and delete the
+    # anchor along with it, leaving "other: *ref" pointing at nothing -
+    # a document that no longer parses at all.
+    original = "tag: &ref 1.2.3\nother: *ref\n"
+    with pytest.raises(MissingKey):
+        replace_yaml_value(original, "tag", "1.3.0")
+    assert original == "tag: &ref 1.2.3\nother: *ref\n"
