@@ -206,5 +206,18 @@ By design:
 `RELEASE_ORCHESTRATOR_TOKEN` is the only secret, needed by
 `release-orchestrate.yaml` and `labels-sync.yaml` because the built-in
 token cannot reach other repositories. It needs `contents: write` and
-`pull-requests: write` on the component repositories. Everything else
-uses the built-in token, and the status table needs no token at all.
+`pull-requests: write` on the component repositories. The status table
+needs no token at all.
+
+`release-propose.yaml` uses it too, for a different reason. The built-in
+token can open the manifest pull request, but only where *Allow GitHub
+Actions to create and approve pull requests* is on, and a pull request
+it opens triggers no workflow, so the orchestrator would not see the
+manifest until its next quarter-hourly run. Without the secret the step
+fails with
+
+```
+GitHub Actions is not permitted to create or approve pull requests
+```
+
+which is the setting, not the token scope.
