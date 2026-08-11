@@ -110,6 +110,7 @@ Every script reports by default and writes only when asked.
 | `sync_labels.py` | writes only with `--execute` |
 | `propose.py` | writes only the manifest file it is pointed at |
 | `check_variables.py` | never writes. Compares `components.yaml` with the Actions variables |
+| `fork_obs.py` | writes only with `--execute`, and holds no credentials without it |
 
 Writes funnel through one client method that no-ops and logs while
 `dry_run` is set, so a dry run is a property of the client rather than
@@ -151,6 +152,38 @@ A fork inherits tags but not releases, so `plan.py` skips its "ahead of
 the latest release" check there and the reconciler reads every component
 as unreleased until its bump pull request lands. That is the intended
 reading: on a fork nothing has been released.
+
+### Rehearsing the OBS half
+
+The OBS projects turn out to be forkable too, because they are not where
+the sources live. Every package in `devel:sap:trento` and its `:factory`
+carries a `_scmsync.obsinfo`:
+
+```
+url: https://src.opensuse.org/SAP-trento/trento-web
+revision: stable          # `main` in the factory project
+```
+
+OBS mirrors git, so a personal copy is a fork of each repository plus a
+project whose packages scmsync to the fork. `fork_obs.py` reads the real
+projects for those repositories and branches rather than restating them,
+and prints the two `gh variable set` lines that point the fork's
+`obs-sync.yaml` at the copy.
+
+```bash
+.venv/bin/python scripts/release/fork_obs.py            # what it would do
+.venv/bin/python scripts/release/fork_obs.py --execute
+.venv/bin/python scripts/release/fork_obs.py --execute --cleanup
+```
+
+The copy is created without repositories. The rehearsal is about whether
+the cascade reaches OBS and whether the table reads the versions back;
+building is neither, and `trento-web` alone carries a 250 MB
+`node_modules` archive that would be rebuilt on every commit.
+
+`--obs-api` and `--project` point the same script at another build
+service. Which git forge the forks land on is not a setting: it is
+whichever one the packages there say they are synced from.
 
 ## The status table
 
