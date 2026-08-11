@@ -384,13 +384,24 @@ def load_config(path: Path = COMPONENTS_FILE) -> Config:
     org = os.environ.get("TRENTO_GITHUB_ORG") or sources["github"]["org"]
     ghcr_namespace = os.environ.get("TRENTO_GHCR_NAMESPACE") or sources["ghcr"]["namespace"]
 
+    # The two OBS projects are organisation variables that the component
+    # release workflows already build their matrix from. Prefer them, so
+    # the table cannot describe a project nothing publishes to; the
+    # values below are the fallback for a run with no variables in
+    # scope, such as a fork or a local dry run.
+    obs_projects = dict(sources["obs"]["projects"])
+    for key, variable in (("stable", "OBS_PROJECT_STABLE"), ("rolling", "OBS_PROJECT_ROLLING")):
+        override = os.environ.get(f"TRENTO_{variable}")
+        if override:
+            obs_projects[key] = override
+
     return Config(
         raw=raw,
         components=components,
         github_api=sources["github"]["api"].rstrip("/"),
         github_org=org,
         obs_api=sources["obs"]["api"].rstrip("/"),
-        obs_projects=dict(sources["obs"]["projects"]),
+        obs_projects=obs_projects,
         scc_api=scc["api"].rstrip("/"),
         scc_product_pattern=scc["product_pattern"],
         scc_architectures=list(scc.get("architectures") or ["x86_64"]),

@@ -109,6 +109,7 @@ Every script reports by default and writes only when asked.
 | `reconcile.py` | writes only with `--execute`, and only past the approval gate |
 | `sync_labels.py` | writes only with `--execute` |
 | `propose.py` | writes only the manifest file it is pointed at |
+| `check_variables.py` | never writes. Compares `components.yaml` with the Actions variables |
 
 Writes funnel through one client method that no-ops and logs while
 `dry_run` is set, so a dry run is a property of the client rather than
@@ -122,6 +123,7 @@ python3 -m venv .venv && .venv/bin/pip install -r scripts/release/requirements.t
 .venv/bin/python scripts/release/plan.py --manifest /tmp/manifest.yaml
 .venv/bin/python scripts/release/reconcile.py --manifest /tmp/manifest.yaml
 .venv/bin/python scripts/release/sync_labels.py
+.venv/bin/python scripts/release/check_variables.py
 ```
 
 ### Rehearsing on forks
@@ -135,6 +137,7 @@ run against `trento-project`:
 | `TRENTO_GITHUB_ORG` | the organisation or user holding the component repositories |
 | `TRENTO_SELF_REPO` | this repository, which cannot be called `.github` in a fork |
 | `TRENTO_GHCR_NAMESPACE` | where tier 2 looks for the images it pins |
+| `TRENTO_OBS_PROJECT_STABLE`, `TRENTO_OBS_PROJECT_ROLLING` | the two OBS projects, normally fed from the organisation variables |
 
 Nothing else changes: every repository, package and image name is
 derived from `components.yaml`.
@@ -200,6 +203,28 @@ By design:
 - approving the manifest pull request
 - merging each bump pull request, so component CI is a real gate
 - the internal submissions, which need the VPN and credentials
+
+## Variables and secrets
+
+Nothing new is introduced. Everything here reuses what the component
+release workflows already use.
+
+| | |
+| --- | --- |
+| `OBS_PROJECT_STABLE`, `OBS_PROJECT_ROLLING` | organisation variables. The obs-sync matrix is built from them, and the status table reads them, so the table cannot name a project nothing publishes to |
+| `OBS_PACKAGE`, `OBS_ENABLED` | repository variables, one per component. Restated here as `obs_package`, which is what `check_variables.py` compares |
+| `TRENTOBOT_GH_PAT` | the organisation bot's token, already used by `git-release.yaml`, `publish-containers.yaml`, `obs-sync.yaml` and the CVE remediation pull requests |
+
+The two OBS project names are also in `components.yaml`. That copy is
+the fallback for a fork or a local run, where no organisation variable
+is in scope; where one is, it wins.
+
+`check_variables.py` is what keeps `obs_package` and `OBS_PACKAGE` from
+parting company. A disagreement is otherwise silent: the table would
+report an OBS package nothing publishes to, and go on calling it "not
+submitted" forever. It runs beside the table and needs a token that can
+read repository variables; without one it says so and passes, which is
+what happens on a fork.
 
 ## Tokens
 

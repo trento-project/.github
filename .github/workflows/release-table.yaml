@@ -38,6 +38,12 @@ env:
   # A fork renders its own fork's table rather than trento-project's.
   TRENTO_GITHUB_ORG: ${{ github.repository_owner }}
   TRENTO_SELF_REPO: ${{ github.event.repository.name }}
+  # The two organisation variables the component release workflows build
+  # their obs-sync matrix from, so the table reads the projects actually
+  # published to rather than a second copy of their names. Empty where
+  # they are not set, and components.yaml supplies the values instead.
+  TRENTO_OBS_PROJECT_STABLE: ${{ vars.OBS_PROJECT_STABLE }}
+  TRENTO_OBS_PROJECT_ROLLING: ${{ vars.OBS_PROJECT_ROLLING }}
 
 concurrency:
   group: release-table-${{ github.ref }}
@@ -80,3 +86,44 @@ jobs:
           commit_message: Update the release status table
           commit_user_name: trento-bot
           commit_user_email: trento-bot@users.noreply.github.com
+
+  # The OBS package names in components.yaml are also the OBS_PACKAGE
+  # variable of each component repository, where obs-sync.yaml reads
+  # them. If the two ever part company the table reports a package
+  # nothing publishes to, and says "not submitted" about it forever.
+  #
+  # Separate from the table itself, which stays credential free. Without
+  # a token that can read the variables there is nothing to compare and
+  # the check says so and passes.
+  variables:
+    name: Check the repository variables
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --disable-pip-version-check \
+            -r scripts/release/requirements.txt
+
+      - name: Check
+        env:
+          GITHUB_TOKEN: ${{ secrets.TRENTOBOT_GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          # Without this the exit status is tee's, and drift reports
+          # success.
+          set -o pipefail
+
+          {
+            echo "## Repository variables"
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # `|| status=` and not a bare call: the step runs under `set
+          # -e`, so drift would exit here and leave the fence open.
+          status=0
+          .venv/bin/python scripts/release/check_variables.py \
+            2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $status
