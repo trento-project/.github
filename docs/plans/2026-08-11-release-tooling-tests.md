@@ -552,15 +552,15 @@ def test_trailing_slashes_are_stripped_from_every_api(components_file):
 
 def test_an_empty_manifest_says_so(tmp_path):
     path = tmp_path / "manifest.yaml"
-    path.write_text("versions: {}\n", encoding="utf-8")
-    assert load_manifest(path).is_empty()
+    path.write_text("components: {}\n", encoding="utf-8")
+    assert load_manifest(path).is_empty
 
 
 def test_a_manifest_entry_is_read(tmp_path):
     path = tmp_path / "manifest.yaml"
-    path.write_text("versions:\n  alpha: 1.2.3\n", encoding="utf-8")
+    path.write_text("components:\n  alpha:\n    version: 1.2.3\n", encoding="utf-8")
     manifest = load_manifest(path)
-    assert not manifest.is_empty()
+    assert not manifest.is_empty
     assert str(manifest.entries["alpha"].version) == "1.2.3"
 
 
@@ -577,7 +577,7 @@ def test_the_bump_branch_avoids_a_release_slash_prefix():
 
 Run: `.venv-dev/bin/pytest scripts/release/tests/test_config.py -v`
 
-Expected: all pass. `test_a_manifest_entry_is_read` depends on the manifest schema; if `load_manifest` expects a different top-level key, read `common.py:447` and correct the fixture text, not the assertion about behaviour.
+Expected: all pass. The manifest schema is `components: {name: {version, branch}}` under an optional `train:`, and `is_empty` is a property, not a method — see `common.load_manifest`. If a fixture disagrees with the loader, correct the fixture text, not the assertion about behaviour.
 
 - [ ] **Step 3: Commit**
 
@@ -2279,9 +2279,11 @@ somebody reads."
 # A train that bumps web and drags the chart in behind it. The versions
 # must be ahead of whatever record.sh captured; bump them when the
 # recording is refreshed and the plan reports "does not advance".
-versions:
-  web: 99.1.0
-  helm-charts: 99.1.0
+components:
+  web:
+    version: 99.1.0
+  helm-charts:
+    version: 99.1.0
 ```
 
 - [ ] **Step 2: Write the tests**
@@ -2321,8 +2323,9 @@ teardown_file() {
 
 @test "an unknown component fails and lists the known ones" {
   cat > "$E2E_TMP/unknown.yaml" <<'YAML'
-versions:
-  nonesuch: 1.0.0
+components:
+  nonesuch:
+    version: 1.0.0
 YAML
   run_release plan.py --manifest "$E2E_TMP/unknown.yaml"
   [ "$status" -eq 1 ]
@@ -2331,8 +2334,9 @@ YAML
 
 @test "a version that does not advance is refused" {
   cat > "$E2E_TMP/backwards.yaml" <<'YAML'
-versions:
-  web: 0.0.1
+components:
+  web:
+    version: 0.0.1
 YAML
   run_release plan.py --manifest "$E2E_TMP/backwards.yaml"
   [ "$status" -eq 1 ]
@@ -2341,9 +2345,10 @@ YAML
 
 @test "a non-patch bump on the release branch is refused" {
   cat > "$E2E_TMP/hotfix.yaml" <<'YAML'
-branch: release
-versions:
-  web: 99.2.0
+components:
+  web:
+    version: 99.2.0
+    branch: release
 YAML
   run_release plan.py --manifest "$E2E_TMP/hotfix.yaml"
   [ "$status" -eq 1 ]
@@ -2353,8 +2358,9 @@ YAML
 
 @test "leaving a dependent out of the train warns but passes" {
   cat > "$E2E_TMP/web-only.yaml" <<'YAML'
-versions:
-  web: 99.1.0
+components:
+  web:
+    version: 99.1.0
 YAML
   run_release plan.py --manifest "$E2E_TMP/web-only.yaml" --no-diff
   [ "$status" -eq 0 ]
@@ -2363,8 +2369,9 @@ YAML
 
 @test "the same train fails under --strict" {
   cat > "$E2E_TMP/web-only.yaml" <<'YAML'
-versions:
-  web: 99.1.0
+components:
+  web:
+    version: 99.1.0
 YAML
   run_release plan.py --manifest "$E2E_TMP/web-only.yaml" --no-diff --strict
   [ "$status" -eq 1 ]
@@ -2372,7 +2379,7 @@ YAML
 
 @test "an empty manifest plans nothing" {
   cat > "$E2E_TMP/empty.yaml" <<'YAML'
-versions: {}
+components: {}
 YAML
   run_release plan.py --manifest "$E2E_TMP/empty.yaml" --json
   [ "$status" -eq 0 ]
@@ -2520,7 +2527,7 @@ UPDATE_GOLDEN=1 bats scripts/release/tests/e2e/propose.bats
 cat scripts/release/tests/e2e/golden/manifest.yaml
 ```
 
-Read it. It must be valid YAML with a `versions:` mapping. An empty proposal is a legitimate outcome if the recording shows no merged pull requests since the last release — if so, note it and keep going; the third test still proves the round trip.
+Read it. It must be valid YAML with a `components:` mapping of `{name: {version, branch}}`. An empty proposal is a legitimate outcome if the recording shows no merged pull requests since the last release — if so, note it and keep going; the third test still proves the round trip.
 
 - [ ] **Step 5: Run and commit**
 
