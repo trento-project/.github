@@ -12,6 +12,9 @@ addopts = "-q --strict-markers"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# The same flat directory pytest imports from. Without it ruff sorts
+# `from common import ...` as a third-party import and fights the tests.
+src = ["scripts/release"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
