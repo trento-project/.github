@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -31,6 +32,7 @@ from common import REPO_ROOT, load_config, log
 
 BEGIN_MARKER = "<!-- BEGIN trento-release-status -->"
 END_MARKER = "<!-- END trento-release-status -->"
+FOOTER_RE = re.compile(r"^<sub>Generated from .*$", re.MULTILINE)
 
 GITHUB_REPO_URL = "https://github.com/{org}/{repo}"
 OBS_PACKAGE_URL = "https://build.opensuse.org/package/show/{project}/{package}"
@@ -149,11 +151,20 @@ def render(config, state: dict) -> str:
     )
 
 
+def without_timestamp(block: str) -> str:
+    return FOOTER_RE.sub("", block)
+
+
 def inject(readme: Path, block: str) -> tuple[str, bool]:
     original = readme.read_text(encoding="utf-8") if readme.exists() else ""
     if BEGIN_MARKER in original and END_MARKER in original:
         start = original.index(BEGIN_MARKER)
         end = original.index(END_MARKER) + len(END_MARKER)
+        # A refresh that found nothing new is not a change. Comparing
+        # the whole block would make every daily run commit a new
+        # timestamp, and would make --check fail on every pull request.
+        if without_timestamp(original[start:end]) == without_timestamp(block):
+            return original, False
         updated = original[:start] + block + original[end:]
     else:
         separator = "" if original.endswith("\n\n") or not original else "\n"
