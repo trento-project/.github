@@ -41,10 +41,11 @@ which carries every write, and `fork_obs.py:96`.
 on it directly.
 
 **Addressable endpoints.** `github_api`, `obs_api` and `scc_api` all
-come from `components.yaml`, and all seven scripts take `--components`.
-A test configuration can therefore point every API at a local server
-without the code knowing it is under test. GHCR is the one exception,
-addressed under *Production changes*.
+come from `components.yaml`, and seven of the eight scripts take
+`--components`. A test configuration can therefore point every API at a
+local server without the code knowing it is under test. GHCR and
+`render_table.py` are the two exceptions, both addressed under
+*Production changes*.
 
 ## Approach
 
@@ -208,11 +209,19 @@ Around 60 to 70 cases, roughly 900 lines. No production code changes.
 
 **Reconciler** (`reconcile.py:105-120`), synthetic and in-process
 
-- each transition: `todo`, `open`, `merged`, `released`, and `blocked`
-  when a dependency is not yet released
+- all six states: `todo`, `open`, `merged`, `released`, `blocked` when a
+  dependency is not yet released, and `abandoned` when a pull request
+  exists but is closed unmerged
 - a published tag with a missing image stays `merged`, not `released`
 - write safety: with approval absent, and separately with `release/go`
   absent, `github.performed` is an empty list
+
+`abandoned` has no entry in `STATE_ICON` (`reconcile.py:59`), so
+`STATE_ICON.get(state, '')` renders it as a blank cell in the progress
+comment — a component whose bump was closed unmerged looks like a
+formatting glitch rather than a stalled release. The test pins the
+current behaviour and records the gap; giving it an icon is a
+one-line follow-up, deliberately not bundled into a testing change.
 
 **Remaining pure functions** — `problems_for`, `em_dash_if_empty`,
 `without_timestamp`, `inject`, `render_manifest`, `render_human`,
@@ -298,6 +307,13 @@ Fix: presence beats the CLI, so `GITHUB_TOKEN` set but empty means "no
 token, do not ask `gh`". Two lines. It changes nothing in CI, where the
 variable already renders empty and `gh` is absent, so both paths
 already yield `None`.
+
+**`render_table.py` cannot be pointed at a configuration.** It is the
+one script with no `--components` flag: `main` calls `load_config()`
+with the default path, and `collect()` (`render_table.py:41`) spawns
+`collect_state.py` as a subprocess without forwarding one. The status
+table is in the end-to-end set, so it needs the flag and needs to pass
+it to its child.
 
 **Configuration, not behaviour:** a `pyproject.toml` carrying pytest
 settings and ruff, and a `requirements-dev.txt`.
