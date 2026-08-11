@@ -58,7 +58,7 @@ jobs:
         env:
           # Writing labels in the component repositories needs a token
           # that reaches them.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_ORCHESTRATOR_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.TRENTOBOT_GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           # Without this the exit status is tee's, and a sync that could
           # not reach a repository reports success.

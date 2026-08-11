@@ -80,8 +80,9 @@ jobs:
           # The built-in token would do to open the pull request, but a
           # pull request it opens triggers no workflow, so the
           # orchestrator would not see the manifest until its next
-          # quarter-hourly run.
-          GH_TOKEN: ${{ secrets.RELEASE_ORCHESTRATOR_TOKEN || secrets.GITHUB_TOKEN }}
+          # quarter-hourly run. The bot's does, and because it is the
+          # bot's it can be approved by whoever is running the release.
+          GH_TOKEN: ${{ secrets.TRENTOBOT_GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           if git diff --quiet -- release/manifest.yaml; then
             echo "Nothing to release." >> "$GITHUB_STEP_SUMMARY"

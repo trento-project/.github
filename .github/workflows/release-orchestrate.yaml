@@ -77,7 +77,7 @@ jobs:
         env:
           # Needs to open pull requests in the component repositories, so
           # the built-in token is not enough.
-          GITHUB_TOKEN: ${{ secrets.RELEASE_ORCHESTRATOR_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.TRENTOBOT_GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           # Without this the exit status is tee's, and a reconcile that
           # found a problem reports success.

@@ -203,21 +203,29 @@ By design:
 
 ## Tokens
 
-`RELEASE_ORCHESTRATOR_TOKEN` is the only secret, needed by
-`release-orchestrate.yaml` and `labels-sync.yaml` because the built-in
-token cannot reach other repositories. It needs `contents: write` and
-`pull-requests: write` on the component repositories. The status table
-needs no token at all.
+`TRENTOBOT_GH_PAT` is the only secret, and it already exists.
+`release-orchestrate.yaml` and `labels-sync.yaml` need it because the
+built-in token cannot reach other repositories: writing labels and
+opening bump pull requests in the eight component repositories needs
+`contents: write` and `pull-requests: write` on all of them. The status
+table itself needs no token.
 
-`release-propose.yaml` uses it too, for a different reason. The built-in
-token can open the manifest pull request, but only where *Allow GitHub
-Actions to create and approve pull requests* is on, and a pull request
-it opens triggers no workflow, so the orchestrator would not see the
-manifest until its next quarter-hourly run. Without the secret the step
-fails with
+`release-propose.yaml` uses it for a different reason. The built-in
+token can open the manifest pull request, but a pull request it opens
+triggers no workflow, so the orchestrator would not see the manifest
+until its next quarter-hourly run. The bot's pull request triggers it,
+and being the bot's it can be approved by whoever is running the
+release — GitHub does not let anyone approve their own.
+
+Opening a pull request with the built-in token also depends on *Allow
+GitHub Actions to create and approve pull requests*. It is on for the
+`trento-project` repositories; a fresh fork has it off, and the step
+fails there with
 
 ```
 GitHub Actions is not permitted to create or approve pull requests
 ```
 
-which is the setting, not the token scope.
+which is that setting, not a token scope. With `TRENTOBOT_GH_PAT` set
+the setting does not apply at all, because a personal access token is
+not the Actions token.
