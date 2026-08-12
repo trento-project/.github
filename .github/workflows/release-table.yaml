@@ -13,8 +13,11 @@ name: Release status table
 
 on:
   schedule:
-    # Daily. OBS and SCC move on their own schedule, not ours.
-    - cron: "17 5 * * *"
+    # Hourly. OBS and SCC move on their own schedule, not ours, and a
+    # run that finds nothing new commits nothing, so the cost of asking
+    # often is a workflow minute rather than a commit. Not on the hour:
+    # scheduled runs bunch up there and get held back.
+    - cron: "17 * * * *"
   push:
     branches: [main]
     paths:

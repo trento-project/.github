@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # The release status table
 
 `profile/README.md` carries a table of what is released where, between
-markers, refreshed daily by `.github/workflows/release-table.yaml`.
+markers, refreshed hourly by `.github/workflows/release-table.yaml`.
 Answering "which version of Trento is in 15 SP7?" should not require
 opening three websites.
 

@@ -165,7 +165,7 @@ def inject(readme: Path, block: str) -> tuple[str, bool]:
         start = original.index(BEGIN_MARKER)
         end = original.index(END_MARKER) + len(END_MARKER)
         # A refresh that found nothing new is not a change. Comparing
-        # the whole block would make every daily run commit a new
+        # the whole block would make every scheduled run commit a new
         # timestamp, and would make --check fail on every pull request.
         if without_timestamp(original[start:end]) == without_timestamp(block):
             return original, False
