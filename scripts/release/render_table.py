@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: SUSE LLC
 # SPDX-License-Identifier: Apache-2.0
+# SPDX-FileContributor: Generated with AI assistance
 
 """Render the Trento release status tables.
 

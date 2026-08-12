@@ -1,6 +1,7 @@
 <!--
 SPDX-FileCopyrightText: SUSE LLC
 SPDX-License-Identifier: Apache-2.0
+SPDX-FileContributor: Generated with AI assistance
 -->
 
 # The release status table
