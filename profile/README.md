@@ -9,7 +9,7 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 
 ### Latest releases
 
-| Project | Latest release | OBS `devel:sap:trento` | OBS `devel:sap:trento:factory` |
+| Project | Latest GitHub release | OBS `devel:sap:trento` | OBS `devel:sap:trento:factory` |
 | --- | --- | --- | --- |
 | [web](https://github.com/trento-project/web) | [`3.1.5`](https://github.com/trento-project/web/releases/tag/3.1.5) | [`3.1.5`](https://build.opensuse.org/package/show/devel:sap:trento/trento-web) | [`3.1.5+git.182.1786465040.28d084833`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-web) |
 | [wanda](https://github.com/trento-project/wanda) | [`2.1.0`](https://github.com/trento-project/wanda/releases/tag/2.1.0) | [`2.1.0`](https://build.opensuse.org/package/show/devel:sap:trento/trento-wanda) | [`2.1.0+git.21.1786374584.5e2e56db`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-wanda) |

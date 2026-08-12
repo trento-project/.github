@@ -63,7 +63,7 @@ def render_releases_table(config, state: dict) -> str:
     rolling_project = config.obs_projects.get("rolling", "")
 
     lines = [
-        f"| Project | Latest release | OBS `{stable_project}` | OBS `{rolling_project}` |",
+        f"| Project | Latest GitHub release | OBS `{stable_project}` | OBS `{rolling_project}` |",
         "| --- | --- | --- | --- |",
     ]
     for name in config.components:
