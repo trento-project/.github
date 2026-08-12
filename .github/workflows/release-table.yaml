@@ -48,8 +48,9 @@ env:
   TRENTO_GITHUB_ORG: ${{ github.repository_owner }}
   # The two organisation variables the component release workflows build
   # their obs-sync matrix from, so the table reads the projects actually
-  # published to rather than a second copy of their names. Empty where
-  # they are not set, and components.yaml supplies the values instead.
+  # published to rather than a second copy of their names. They are the
+  # only source: where neither is in scope the table has no OBS columns,
+  # which is the right answer for somewhere that publishes to no project.
   TRENTO_OBS_PROJECT_STABLE: ${{ vars.OBS_PROJECT_STABLE }}
   TRENTO_OBS_PROJECT_ROLLING: ${{ vars.OBS_PROJECT_ROLLING }}
 

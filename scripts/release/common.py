@@ -69,6 +69,19 @@ SEMVER_RE = re.compile(
 )
 
 
+def pre_release_key(pre: str | None) -> tuple:
+    """Order pre-release identifiers the way the specification does.
+
+    The dot-separated identifiers are compared one at a time. A numeric
+    one compares numerically, so `beta.2` precedes `beta.11` rather than
+    following it, and ranks below an alphanumeric one. Where every
+    identifier matches, the longer pre-release is the greater.
+    """
+    if not pre:
+        return ()
+    return tuple((0, int(part), "") if part.isdigit() else (1, 0, part) for part in pre.split("."))
+
+
 @dataclass(frozen=True, order=False)
 class Version:
     major: int
@@ -104,7 +117,7 @@ class Version:
     def _key(self) -> tuple:
         # A release outranks any of its pre-releases; build metadata is
         # ignored for ordering, as the specification requires.
-        return (self.major, self.minor, self.patch, 1 if self.pre is None else 0, self.pre or "")
+        return (self.major, self.minor, self.patch, 1 if self.pre is None else 0, pre_release_key(self.pre))
 
     def __lt__(self, other: "Version") -> bool:
         return self._key() < other._key()
