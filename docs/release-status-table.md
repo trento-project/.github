@@ -84,7 +84,7 @@ release workflows.
 | --- | --- |
 | `OBS_PROJECT_STABLE`, `OBS_PROJECT_ROLLING` | organisation variables. Every component's obs-sync matrix is built from them, and the table reads the same two, so it cannot name a project nothing publishes to. **The table's OBS columns depend on them**: with neither in scope there are no OBS columns |
 | `TRENTOBOT_GPG_KEY` | the key every component's release commits are signed with. Used here for the same reason: a commit that lands on the organisation profile unattended should be verifiable |
-| `TRENTOBOT_SSH_KEY` | the deploy key the table commit is pushed with. **Without it the workflow cannot commit at all** |
+| `TRENTOBOT_SSH_KEY` | the deploy key the table commit is pushed with. **Without it the workflow can create the local commit, but its push to protected `main` is rejected** |
 
 All of these must be visible to this repository, not only to the
 component repositories. An organisation secret or variable restricted to
