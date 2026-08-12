@@ -18,15 +18,21 @@ on:
     # often is a workflow minute rather than a commit. Not on the hour:
     # scheduled runs bunch up there and get held back.
     - cron: "17 * * * *"
+  # The workflow is in its own path filters: a change to how the table is
+  # built should be exercised by building it, rather than waiting for the
+  # hour to find out.
   push:
     branches: [main]
     paths:
       - release/components.yaml
       - scripts/release/**
+      - .github/workflows/release-table.yaml
   pull_request:
+    branches: [main]
     paths:
       - release/components.yaml
       - scripts/release/**
+      - .github/workflows/release-table.yaml
   workflow_dispatch:
     inputs:
       dry_run:
