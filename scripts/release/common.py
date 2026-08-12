@@ -232,16 +232,20 @@ def load_config(path: Path = COMPONENTS_FILE) -> Config:
     # upstream regressed.
     org = os.environ.get("TRENTO_GITHUB_ORG") or sources["github"]["org"]
 
-    # The two OBS projects are organisation variables that the component
-    # release workflows already build their matrix from. Prefer them, so
-    # the table cannot describe a project nothing publishes to; the
-    # values in components.yaml are the fallback for a run with no
-    # variables in scope, such as a fork or a local dry run.
-    obs_projects = dict(sources["obs"]["projects"])
+    # The OBS projects are named by the organisation variables the
+    # component release workflows already build their obs-sync matrix
+    # from, and by nothing else. A project cannot be inferred the way the
+    # GitHub organisation can: OBS is keyed on an OBS account, which has
+    # no relationship to a GitHub owner. So a run with no variables in
+    # scope reports no OBS columns, rather than someone else's.
+    obs_projects: dict[str, str] = {}
     for key, variable in (("stable", "OBS_PROJECT_STABLE"), ("rolling", "OBS_PROJECT_ROLLING")):
         override = os.environ.get(f"TRENTO_{variable}")
         if override:
             obs_projects[key] = override
+    if not obs_projects:
+        log("! no OBS project in scope: set TRENTO_OBS_PROJECT_STABLE and")
+        log("! TRENTO_OBS_PROJECT_ROLLING, or the table has no OBS columns")
 
     return Config(
         components=components,

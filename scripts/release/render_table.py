@@ -59,12 +59,17 @@ def obs_cell(version: str | None, project: str, package: str) -> str:
 
 
 def render_releases_table(config, state: dict) -> str:
-    stable_project = config.obs_projects.get("stable", "")
-    rolling_project = config.obs_projects.get("rolling", "")
+    """One column per OBS project in scope, and none where there are none.
 
+    The projects come from the organisation variables, so a fork that has
+    not set them renders the GitHub column alone rather than reporting
+    another organisation's builds as its own.
+    """
+    projects = config.obs_projects
+    headers = ["Project", "Latest GitHub release"] + [f"OBS `{p}`" for p in projects.values()]
     lines = [
-        f"| Project | Latest GitHub release | OBS `{stable_project}` | OBS `{rolling_project}` |",
-        "| --- | --- | --- | --- |",
+        "| " + " | ".join(headers) + " |",
+        "| " + " | ".join("---" for _ in headers) + " |",
     ]
     for name in config.components:
         entry = state["components"][name]
@@ -77,13 +82,10 @@ def render_releases_table(config, state: dict) -> str:
         release_cell = (
             f"[`{version}`]({github['url']})" if version and github.get("url") else em_dash_if_empty(version)
         )
-        if package:
-            stable_cell = obs_cell(obs.get("stable"), stable_project, package)
-            rolling_cell = obs_cell(obs.get("rolling"), rolling_project, package)
-        else:
-            stable_cell = rolling_cell = "—"
-
-        lines.append(f"| [{name}]({repo_url}) | {release_cell} | {stable_cell} | {rolling_cell} |")
+        cells = [f"[{name}]({repo_url})", release_cell]
+        for stream, project in projects.items():
+            cells.append(obs_cell(obs.get(stream), project, package) if package else "—")
+        lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines)
 
 

@@ -48,6 +48,9 @@ means adding an entry there and nothing else.
 python3 -m venv .venv
 .venv/bin/pip install -r scripts/release/requirements.txt
 
+export TRENTO_OBS_PROJECT_STABLE=devel:sap:trento
+export TRENTO_OBS_PROJECT_ROLLING=devel:sap:trento:factory
+
 .venv/bin/python scripts/release/collect_state.py -o state.json
 .venv/bin/python scripts/release/render_table.py --state state.json
 ```
@@ -57,10 +60,19 @@ place. `GITHUB_TOKEN` is optional and only raises the API rate limit;
 the scripts fall back to the `gh` CLI's own credentials when it is set
 up, and work anonymously when it is not.
 
+The two exports are what the workflow passes from the organisation
+variables. Without them the run says so and the table comes out with no
+OBS columns, which is the correct answer for somewhere that publishes
+to no OBS project.
+
 A fork renders its own table. The workflow passes
 `TRENTO_GITHUB_ORG: ${{ github.repository_owner }}`, so a fork's run
 reports the fork's releases rather than `trento-project`'s and does not
-produce a diff that looks like upstream regressed.
+produce a diff that looks like upstream regressed. The OBS projects
+cannot follow a fork the same way, because OBS is keyed on an OBS
+account and nothing connects that to a GitHub owner. A fork that
+publishes to `home:<user>:trento` says so by setting its own two
+variables, and one that publishes nowhere gets no OBS columns.
 
 ## Variables and secrets
 
@@ -69,12 +81,17 @@ release workflows.
 
 | | |
 | --- | --- |
-| `OBS_PROJECT_STABLE`, `OBS_PROJECT_ROLLING` | organisation variables. Every component's obs-sync matrix is built from them, and the table reads them, so the table cannot name a project nothing publishes to |
+| `OBS_PROJECT_STABLE`, `OBS_PROJECT_ROLLING` | organisation variables. Every component's obs-sync matrix is built from them, and the table reads the same two, so it cannot name a project nothing publishes to. **The table's OBS columns depend on them**: with neither in scope there are no OBS columns |
 | `TRENTOBOT_GPG_KEY` | the key every component's release commits are signed with. Used here for the same reason: a commit that lands on the organisation profile unattended should be verifiable |
 
-The two OBS project names are also in `components.yaml`. That copy is
-the fallback for a fork or a local run, where no organisation variable
-is in scope; where one is, it wins.
+Both must be visible to this repository, not only to the component
+repositories. An organisation secret or variable restricted to selected
+repositories will not reach `.github` unless it is on the list.
+
+The project names are deliberately not repeated in `components.yaml`.
+A second copy is a copy to fall out of step, and it is what would let a
+fork with no variables of its own report this organisation's builds as
+if they were the fork's.
 
 The `obs_package` of each component restates the repository's own
 `OBS_PACKAGE` variable, which is where obs-sync.yaml reads it. If the

@@ -21,14 +21,14 @@ sources:
     api: https://api.opensuse.org
     # The public OBS API needs no credentials for these paths.
     #
-    # The two projects are also the organisation variables
-    # OBS_PROJECT_STABLE and OBS_PROJECT_ROLLING, which every component's
-    # release workflow builds its obs-sync matrix from. Those win when
-    # they are in scope; these are the fallback for a fork or a local
-    # run, and the place to look when the table names a project.
-    projects:
-      stable: devel:sap:trento
-      rolling: devel:sap:trento:factory
+    # The projects themselves are deliberately not named here. They come
+    # from the organisation variables OBS_PROJECT_STABLE and
+    # OBS_PROJECT_ROLLING, which every component's release workflow
+    # already builds its obs-sync matrix from, so the table cannot
+    # describe a project nothing publishes to. A second copy here would
+    # be a copy to fall out of step, and worse, a fork with no variables
+    # of its own would report this organisation's builds as its own.
+    # Without them the table simply has no OBS columns.
 
   scc:
     api: https://scc.suse.com
