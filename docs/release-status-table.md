@@ -37,8 +37,7 @@ private release repository, so this one stays publishable.
 | `release/components.yaml` | the component registry: repository, OBS package, SCC package, and where each source lives |
 | `scripts/release/collect_state.py` | queries the three APIs and writes `state.json` |
 | `scripts/release/render_table.py` | turns `state.json` into markdown and injects it between the markers |
-| `scripts/release/check_variables.py` | compares `obs_package` against each repository's `OBS_PACKAGE` variable |
-| `scripts/release/common.py` | the shared library the above import: configuration, a read-only GitHub client, and the OBS and SCC readers |
+| `scripts/release/common.py` | the shared library the two import: configuration, a read-only GitHub client, and the OBS and SCC readers |
 
 `components.yaml` is the single source of truth. Adding a component
 means adding an entry there and nothing else.
@@ -70,18 +69,15 @@ Nothing new is introduced.
 | | |
 | --- | --- |
 | `OBS_PROJECT_STABLE`, `OBS_PROJECT_ROLLING` | organisation variables. Every component's obs-sync matrix is built from them, and the table reads them, so the table cannot name a project nothing publishes to |
-| `OBS_PACKAGE` | a repository variable, one per component. Restated in `components.yaml` as `obs_package`, which is what `check_variables.py` compares |
-| `TRENTOBOT_GH_PAT` | the organisation bot's token, already used by `git-release.yaml`, `publish-containers.yaml` and `obs-sync.yaml` |
 
 The two OBS project names are also in `components.yaml`. That copy is
 the fallback for a fork or a local run, where no organisation variable
 is in scope; where one is, it wins.
 
-`check_variables.py` is what keeps `obs_package` and `OBS_PACKAGE` from
-parting company. A disagreement is otherwise silent: the table would
-report an OBS package nothing publishes to, and go on calling it "not
-submitted" forever. It runs beside the table and needs a token that can
-read repository variables; without one it says so and passes, which is
-what happens on a fork.
+The `obs_package` of each component restates the repository's own
+`OBS_PACKAGE` variable, which is where obs-sync.yaml reads it. If the
+two ever part company the table reports a package nothing publishes to
+and goes on calling it "not submitted" forever, so they are worth
+keeping in step.
 
-The table itself needs no token and no secret.
+The table needs no token and no secret.

@@ -95,7 +95,7 @@ def render_availability_table(config, state: dict) -> str:
         "| Package | " + " | ".join(headers) + " |",
         "| --- | " + " | ".join("---" for _ in headers) + " |",
     ]
-    for name, component in config.components.items():
+    for name in config.components:
         entry = state["components"][name]
         package = entry.get("obs_package")
         if not package:

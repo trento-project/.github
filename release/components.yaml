@@ -1,13 +1,12 @@
 # SPDX-FileCopyrightText: SUSE LLC
 # SPDX-License-Identifier: Apache-2.0
 
-# Single source of truth for the Trento release train.
+# The components the release status table reports on.
 #
-# Consumed by every script under scripts/release/: the public status
-# table, the version proposer, the release planner and the cascade
-# reconciler. Adding a component means adding an entry here and nothing
-# else. Adding a new SLES product means doing nothing at all, because
-# the table discovers products from SCC at runtime.
+# Consumed by scripts/release/collect_state.py and render_table.py.
+# Adding a component means adding an entry here and nothing else.
+# Adding a new SLES product means doing nothing at all, because the
+# table discovers products from SCC at runtime.
 #
 # Internal (IBS/srcIBS) codestream targets deliberately do NOT live
 # here. They are kept in the private release repository so that this
@@ -42,103 +41,39 @@ sources:
     # as service packs accumulate without ever naming one by hand.
     max_products_per_major: 3
 
-  ghcr:
-    registry: ghcr.io
-    namespace: trento-project
-
-# Branches a component may be released from. `main` produces a full
-# release, `release` a hotfix, matching the two jobs in
-# .github/workflows/git-release.yaml.
-release_branches: [main, release]
-
 defaults:
-  version_file: VERSION
-  tier: 1
   # OBS keeps the authoritative version in the spec file, except where
   # a component overrides `obs_version_file` below.
   obs_version_file: '{obs_package}.spec'
 
+# The GitHub repository is the key unless `repo` says otherwise, and the
+# SCC package is the OBS package unless `scc_packages` says otherwise.
 components:
   web:
-    tier: 1
     obs_package: trento-web
-    obs_image_package: trento-web-image
-    ghcr_image: trento-web
 
   wanda:
-    tier: 1
     obs_package: trento-wanda
-    obs_image_package: trento-wanda-image
-    ghcr_image: trento-wanda
 
   checks:
-    tier: 1
     obs_package: trento-checks
-    obs_image_package: trento-checks-image
-    ghcr_image: trento-checks
 
   agent:
-    tier: 1
     obs_package: trento-agent
 
   support:
-    tier: 1
     obs_package: supportutils-plugin-trento
     # The package was renamed; older service packs still ship the old
     # name, so both are queried when building the availability columns.
     scc_packages: [supportutils-plugin-trento, trento-supportconfig-plugin]
 
   mcp-server:
-    tier: 1
     obs_package: mcp-server-trento
-    obs_image_package: mcp-server-trento-image
-    ghcr_image: mcp-server-trento
 
   ansible:
-    tier: 1
     obs_package: ansible-trento
 
   helm-charts:
-    tier: 2
     obs_package: trento-server-helm
+    # A chart has no spec file; OBS carries the version in Chart.yaml.
     obs_version_file: Chart.yaml
-    # Tier 2 waits for these components' container images to exist on
-    # GHCR, not merely for their GitHub release: the chart pins image
-    # tags, so a chart referencing an unpublished tag is broken.
-    depends_on: [web, wanda, checks, mcp-server]
-    # publish-oci.yaml hard-fails the release unless VERSION equals the
-    # trento-server chart version, so both are bumped in one commit.
-    bumps:
-      - path: VERSION
-        kind: plain
-      - path: charts/trento-server/Chart.yaml
-        kind: yaml
-        key: version
-      - path: charts/trento-server/charts/trento-web/Chart.yaml
-        kind: yaml
-        key: version
-        source: web
-      - path: charts/trento-server/charts/trento-web/values.yaml
-        kind: yaml
-        key: image.tag
-        source: web
-      - path: charts/trento-server/charts/trento-wanda/Chart.yaml
-        kind: yaml
-        key: version
-        source: wanda
-      - path: charts/trento-server/charts/trento-wanda/values.yaml
-        kind: yaml
-        key: image.tag
-        source: wanda
-      - path: charts/trento-server/charts/trento-wanda/values.yaml
-        kind: yaml
-        key: checks.image.tag
-        source: checks
-      - path: charts/trento-server/charts/trento-mcp-server/Chart.yaml
-        kind: yaml
-        key: version
-        source: mcp-server
-      - path: charts/trento-server/charts/trento-mcp-server/values.yaml
-        kind: yaml
-        key: image.tag
-        source: mcp-server

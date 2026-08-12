@@ -147,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     config = load_config(args.components)
-    github = GitHub(config.github_api, config.github_org, dry_run=True)
+    github = GitHub(config.github_api, config.github_org)
 
     state: dict = {
         "generated_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
@@ -173,7 +173,6 @@ def main(argv: list[str] | None = None) -> int:
     for name, component in config.components.items():
         state["components"][name] = {
             "repo": component.repo,
-            "tier": component.tier,
             "obs_package": component.obs_package,
             "github": github_state.get(name, {}),
             "obs": obs_state.get(name, {}),
