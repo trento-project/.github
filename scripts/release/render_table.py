@@ -51,6 +51,13 @@ def em_dash_if_empty(value: str | None) -> str:
     return value if value else "—"
 
 
+def obs_cell(version: str | None, project: str, package: str) -> str:
+    """A version linked to the OBS package it was read from."""
+    if not version:
+        return "—"
+    return f"[`{version}`]({OBS_PACKAGE_URL.format(project=project, package=package)})"
+
+
 def render_releases_table(config, state: dict) -> str:
     stable_project = config.obs_projects.get("stable", "")
     rolling_project = config.obs_projects.get("rolling", "")
@@ -71,13 +78,8 @@ def render_releases_table(config, state: dict) -> str:
             f"[`{version}`]({github['url']})" if version and github.get("url") else em_dash_if_empty(version)
         )
         if package:
-            stable_cell = em_dash_if_empty(obs.get("stable"))
-            stable_cell = (
-                f"[`{obs['stable']}`]({OBS_PACKAGE_URL.format(project=stable_project, package=package)})"
-                if obs.get("stable")
-                else stable_cell
-            )
-            rolling_cell = f"`{obs['rolling']}`" if obs.get("rolling") else "—"
+            stable_cell = obs_cell(obs.get("stable"), stable_project, package)
+            rolling_cell = obs_cell(obs.get("rolling"), rolling_project, package)
         else:
             stable_cell = rolling_cell = "—"
 
