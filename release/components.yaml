@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: SUSE LLC
 # SPDX-License-Identifier: Apache-2.0
+# SPDX-FileContributor: Generated with AI assistance
 
 # The components the release status table reports on.
 #
@@ -38,8 +39,11 @@ sources:
     # Architectures collapse into one column; x86_64 is representative.
     architectures: [x86_64]
     # Columns per major version, newest first. Keeps the table readable
-    # as service packs accumulate without ever naming one by hand.
-    max_products_per_major: 3
+    # as service packs accumulate without ever naming one by hand. Four
+    # is enough to reach the oldest SLES 15 service pack still under
+    # LTSS; a pack that falls off the end is still queried, just not
+    # rendered.
+    max_products_per_major: 4
 
 defaults:
   # OBS keeps the authoritative version in the spec file, except where
