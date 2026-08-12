@@ -1,0 +1,126 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileContributor: Generated with AI assistance
+
+# Keep the release status table in profile/README.md true.
+#
+# Every number in it comes from the GitHub, OBS and SCC public APIs at
+# run time. None of the three needs credentials, and no version, package
+# or SLES service pack is named by hand anywhere: a new service pack
+# appears in the table on its own once SCC ships a Trento package for
+# it.
+
+name: Release status table
+
+on:
+  schedule:
+    # Hourly. OBS and SCC move on their own schedule, not ours, and a
+    # run that finds nothing new commits nothing, so the cost of asking
+    # often is a workflow minute rather than a commit. Not on the hour:
+    # scheduled runs bunch up there and get held back.
+    - cron: "17 * * * *"
+  # The workflow is in its own path filters: a change to how the table is
+  # built should be exercised by building it, rather than waiting for the
+  # hour to find out.
+  push:
+    branches: [main]
+    paths:
+      - release/components.yaml
+      - scripts/release/**
+      - .github/workflows/release-table.yaml
+  pull_request:
+    branches: [main]
+    paths:
+      - release/components.yaml
+      - scripts/release/**
+      - .github/workflows/release-table.yaml
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Render the table but do not commit it
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  # A fork renders its own fork's table rather than trento-project's.
+  TRENTO_GITHUB_ORG: ${{ github.repository_owner }}
+  # The two organisation variables the component release workflows build
+  # their obs-sync matrix from, so the table reads the projects actually
+  # published to rather than a second copy of their names. They are the
+  # only source: where neither is in scope the table has no OBS columns,
+  # which is the right answer for somewhere that publishes to no project.
+  TRENTO_OBS_PROJECT_STABLE: ${{ vars.OBS_PROJECT_STABLE }}
+  TRENTO_OBS_PROJECT_ROLLING: ${{ vars.OBS_PROJECT_ROLLING }}
+
+concurrency:
+  group: release-table-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    env:
+      # A step `if:` cannot read `secrets`, so both conditions the commit
+      # depends on are worked out once here.
+      COMMIT: >-
+        ${{ github.event_name != 'pull_request' &&
+        (github.event_name != 'workflow_dispatch' || inputs.dry_run == false) }}
+      SIGN: ${{ secrets.TRENTOBOT_GPG_KEY != '' }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --disable-pip-version-check \
+            -r scripts/release/requirements.txt
+
+      - name: Collect
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .venv/bin/python scripts/release/collect_state.py -o state.json
+
+      - name: Render
+        run: |
+          .venv/bin/python scripts/release/render_table.py \
+            --state state.json --inject profile/README.md
+          {
+            echo "## Release status"
+            echo
+            .venv/bin/python scripts/release/render_table.py --state state.json
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Every component's release commits are signed with this key, and a
+      # commit landing on the organisation profile unattended should be no
+      # less verifiable. The identity is read back out of the key rather
+      # than written here, so it cannot drift from whoever holds it.
+      - name: Import GPG key
+        id: import-gpg
+        if: env.COMMIT == 'true' && env.SIGN == 'true'
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ secrets.TRENTOBOT_GPG_KEY }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
+      - name: Commit
+        if: env.COMMIT == 'true'
+        env:
+          # The key's own identity, or the Actions bot where no key is in
+          # scope, as on a fork. Spelled out because an empty string is
+          # passed through rather than defaulted, and git refuses to
+          # commit with an empty identity.
+          NAME: ${{ steps.import-gpg.outputs.name || 'github-actions[bot]' }}
+          EMAIL: >-
+            ${{ steps.import-gpg.outputs.email ||
+            '41898282+github-actions[bot]@users.noreply.github.com' }}
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
+        with:
+          file_pattern: profile/README.md
+          commit_message: Update the release status table
+          commit_user_name: ${{ env.NAME }}
+          commit_user_email: ${{ env.EMAIL }}
+          commit_author: ${{ env.NAME }} <${{ env.EMAIL }}>

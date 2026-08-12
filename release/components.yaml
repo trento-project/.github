@@ -1,0 +1,83 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileContributor: Generated with AI assistance
+
+# The components the release status table reports on.
+#
+# Consumed by scripts/release/collect_state.py and render_table.py.
+# Adding a component means adding an entry here and nothing else.
+# Adding a new SLES product means doing nothing at all, because the
+# table discovers products from SCC at runtime.
+#
+# Internal (IBS/srcIBS) codestream targets deliberately do NOT live
+# here. They are kept in the private release repository so that this
+# repository stays publishable.
+
+sources:
+  github:
+    api: https://api.github.com
+    org: trento-project
+
+  obs:
+    api: https://api.opensuse.org
+    # The public OBS API needs no credentials for these paths.
+    #
+    # The projects themselves are deliberately not named here. They come
+    # from the organisation variables OBS_PROJECT_STABLE and
+    # OBS_PROJECT_ROLLING, which every component's release workflow
+    # already builds its obs-sync matrix from, so the table cannot
+    # describe a project nothing publishes to. A second copy here would
+    # be a copy to fall out of step, and worse, a fork with no variables
+    # of its own would report this organisation's builds as its own.
+    # Without them the table simply has no OBS columns.
+
+  scc:
+    api: https://scc.suse.com
+    # Candidate products for the availability columns. Narrowed further
+    # at render time to those actually shipping a Trento package.
+    product_pattern: '^SLES_SAP/'
+    # Architectures collapse into one column; x86_64 is representative.
+    architectures: [x86_64]
+    # Columns per major version, newest first. Keeps the table readable
+    # as service packs accumulate without ever naming one by hand. Four
+    # is enough to reach the oldest SLES 15 service pack still under
+    # LTSS; a pack that falls off the end is still queried, just not
+    # rendered.
+    max_products_per_major: 4
+
+defaults:
+  # OBS keeps the authoritative version in the spec file, except where
+  # a component overrides `obs_version_file` below.
+  obs_version_file: '{obs_package}.spec'
+
+# The GitHub repository is the key unless `repo` says otherwise, and the
+# SCC package is the OBS package unless `scc_packages` says otherwise.
+components:
+  web:
+    obs_package: trento-web
+
+  wanda:
+    obs_package: trento-wanda
+
+  checks:
+    obs_package: trento-checks
+
+  agent:
+    obs_package: trento-agent
+
+  support:
+    obs_package: supportutils-plugin-trento
+    # The package was renamed; older service packs still ship the old
+    # name, so both are queried when building the availability columns.
+    scc_packages: [supportutils-plugin-trento, trento-supportconfig-plugin]
+
+  mcp-server:
+    obs_package: mcp-server-trento
+
+  ansible:
+    obs_package: ansible-trento
+
+  helm-charts:
+    obs_package: trento-server-helm
+    # A chart has no spec file; OBS carries the version in Chart.yaml.
+    obs_version_file: Chart.yaml
