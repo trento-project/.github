@@ -51,6 +51,13 @@ concurrency:
 jobs:
   render:
     runs-on: ubuntu-24.04
+    env:
+      # A step `if:` cannot read `secrets`, so both conditions the commit
+      # depends on are worked out once here.
+      COMMIT: >-
+        ${{ github.event_name != 'pull_request' &&
+        (github.event_name != 'workflow_dispatch' || inputs.dry_run == false) }}
+      SIGN: ${{ secrets.TRENTOBOT_GPG_KEY != '' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
@@ -75,13 +82,34 @@ jobs:
             .venv/bin/python scripts/release/render_table.py --state state.json
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Every component's release commits are signed with this key, and a
+      # commit landing on the organisation profile unattended should be no
+      # less verifiable. The identity is read back out of the key rather
+      # than written here, so it cannot drift from whoever holds it.
+      - name: Import GPG key
+        id: import-gpg
+        if: env.COMMIT == 'true' && env.SIGN == 'true'
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ secrets.TRENTOBOT_GPG_KEY }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+
       - name: Commit
-        if: >-
-          github.event_name != 'pull_request' &&
-          (github.event_name != 'workflow_dispatch' || inputs.dry_run == false)
+        if: env.COMMIT == 'true'
+        env:
+          # The key's own identity, or the Actions bot where no key is in
+          # scope, as on a fork. Spelled out because an empty string is
+          # passed through rather than defaulted, and git refuses to
+          # commit with an empty identity.
+          NAME: ${{ steps.import-gpg.outputs.name || 'github-actions[bot]' }}
+          EMAIL: >-
+            ${{ steps.import-gpg.outputs.email ||
+            '41898282+github-actions[bot]@users.noreply.github.com' }}
         uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
           file_pattern: profile/README.md
           commit_message: Update the release status table
-          commit_user_name: trento-bot
-          commit_user_email: trento-bot@users.noreply.github.com
+          commit_user_name: ${{ env.NAME }}
+          commit_user_email: ${{ env.EMAIL }}
+          commit_author: ${{ env.NAME }} <${{ env.EMAIL }}>

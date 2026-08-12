@@ -62,13 +62,15 @@ A fork renders its own table. The workflow passes
 reports the fork's releases rather than `trento-project`'s and does not
 produce a diff that looks like upstream regressed.
 
-## Variables
+## Variables and secrets
 
-Nothing new is introduced.
+Nothing new is introduced. Both of these already exist for the component
+release workflows.
 
 | | |
 | --- | --- |
 | `OBS_PROJECT_STABLE`, `OBS_PROJECT_ROLLING` | organisation variables. Every component's obs-sync matrix is built from them, and the table reads them, so the table cannot name a project nothing publishes to |
+| `TRENTOBOT_GPG_KEY` | the key every component's release commits are signed with. Used here for the same reason: a commit that lands on the organisation profile unattended should be verifiable |
 
 The two OBS project names are also in `components.yaml`. That copy is
 the fallback for a fork or a local run, where no organisation variable
@@ -80,4 +82,7 @@ two ever part company the table reports a package nothing publishes to
 and goes on calling it "not submitted" forever, so they are worth
 keeping in step.
 
-The table needs no token and no secret.
+Reading the three APIs needs no credential at all. The key is only for
+signing the commit, and where it is not in scope — a fork, or a local
+run — the commit is made by the Actions bot instead and the table is no
+different for it.
