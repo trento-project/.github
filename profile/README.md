@@ -11,7 +11,7 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 
 | Project | Latest GitHub release | OBS `devel:sap:trento` | OBS `devel:sap:trento:factory` |
 | --- | --- | --- | --- |
-| [web](https://github.com/trento-project/web) | [`3.1.5`](https://github.com/trento-project/web/releases/tag/3.1.5) | [`3.1.5`](https://build.opensuse.org/package/show/devel:sap:trento/trento-web) | [`3.1.5+git.208.1786625103.662f85398`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-web) |
+| [web](https://github.com/trento-project/web) | [`3.1.5`](https://github.com/trento-project/web/releases/tag/3.1.5) | [`3.1.5`](https://build.opensuse.org/package/show/devel:sap:trento/trento-web) | [`3.1.5+git.209.1786689159.dabcce653`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-web) |
 | [wanda](https://github.com/trento-project/wanda) | [`2.1.0`](https://github.com/trento-project/wanda/releases/tag/2.1.0) | [`2.1.0`](https://build.opensuse.org/package/show/devel:sap:trento/trento-wanda) | [`2.1.0+git.32.1786606085.a9377be4`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-wanda) |
 | [checks](https://github.com/trento-project/checks) | [`1.3.1`](https://github.com/trento-project/checks/releases/tag/1.3.1) | [`1.3.1`](https://build.opensuse.org/package/show/devel:sap:trento/trento-checks) | [`1.3.1+git.12.1785751914.2884382`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-checks) |
 | [agent](https://github.com/trento-project/agent) | [`3.1.2`](https://github.com/trento-project/agent/releases/tag/3.1.2) | [`3.1.2`](https://build.opensuse.org/package/show/devel:sap:trento/trento-agent) | [`3.1.2+git.57.1786543359.e7b067a`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-agent) |
@@ -34,6 +34,6 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 
 Packages reach these products through the `SLES_SAP`, `sle-module-sap-applications` channels.
 
-<sub>Generated from the GitHub, OBS and SCC APIs on 2026-08-13 13:46 UTC. Do not edit by hand.</sub>
+<sub>Generated from the GitHub, OBS and SCC APIs on 2026-08-14 10:16 UTC. Do not edit by hand.</sub>
 
 <!-- END trento-release-status -->
