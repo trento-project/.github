@@ -85,7 +85,7 @@ jobs:
           git_tag_gpgsign: true
 
       - name: Commit new changelog
-        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9 # v7.1.0
+        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7.2.0
         with:
           # We need to checkout `branch` explicitly because
           # `detect-version` messes with the HEAD ref.
