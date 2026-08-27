@@ -17,7 +17,7 @@ name: Backport PR
 # `released-as-hotfix` is the protection label.
 #
 # WARNING: This re-usable workflow makes use of the global
-# `github.event` context. So, it HAVE TO BE called from a workflow
+# `github.event` context. Therefore, it must be called from a workflow
 # triggered on `pull_request` or `pull_request_target` condition.
 
 on:
