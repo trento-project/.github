@@ -11,10 +11,10 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 
 | Project | Latest GitHub release | OBS `devel:sap:trento` | OBS `devel:sap:trento:factory` |
 | --- | --- | --- | --- |
-| [web](https://github.com/trento-project/web) | [`3.1.5`](https://github.com/trento-project/web/releases/tag/3.1.5) | [`3.1.5`](https://build.opensuse.org/package/show/devel:sap:trento/trento-web) | [`3.1.5+git.263.1788443266.6504244d5`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-web) |
-| [wanda](https://github.com/trento-project/wanda) | [`2.1.0`](https://github.com/trento-project/wanda/releases/tag/2.1.0) | [`2.1.0`](https://build.opensuse.org/package/show/devel:sap:trento/trento-wanda) | [`2.1.0+git.33.1787897487.61452acb`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-wanda) |
+| [web](https://github.com/trento-project/web) | [`3.1.5`](https://github.com/trento-project/web/releases/tag/3.1.5) | [`3.1.5`](https://build.opensuse.org/package/show/devel:sap:trento/trento-web) | [`3.1.5+git.269.1788509267.6f2459a898`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-web) |
+| [wanda](https://github.com/trento-project/wanda) | [`2.1.0`](https://github.com/trento-project/wanda/releases/tag/2.1.0) | [`2.1.0`](https://build.opensuse.org/package/show/devel:sap:trento/trento-wanda) | [`2.1.0+git.35.1788511036.50bbef47`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-wanda) |
 | [checks](https://github.com/trento-project/checks) | [`1.3.1`](https://github.com/trento-project/checks/releases/tag/1.3.1) | [`1.3.1`](https://build.opensuse.org/package/show/devel:sap:trento/trento-checks) | [`1.3.1+git.16.1788364218.6d85098`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-checks) |
-| [agent](https://github.com/trento-project/agent) | [`3.1.2`](https://github.com/trento-project/agent/releases/tag/3.1.2) | [`3.1.2`](https://build.opensuse.org/package/show/devel:sap:trento/trento-agent) | [`3.1.2+git.68.1788439797.f0301e5`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-agent) |
+| [agent](https://github.com/trento-project/agent) | [`3.1.2`](https://github.com/trento-project/agent/releases/tag/3.1.2) | [`3.1.2`](https://build.opensuse.org/package/show/devel:sap:trento/trento-agent) | [`3.1.2+git.69.1788505801.d9949a8`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-agent) |
 | [support](https://github.com/trento-project/support) | [`3.1.0`](https://github.com/trento-project/support/releases/tag/3.1.0) | [`3.1.0`](https://build.opensuse.org/package/show/devel:sap:trento/supportutils-plugin-trento) | [`3.1.0+git.6.1788364365.39657da`](https://build.opensuse.org/package/show/devel:sap:trento:factory/supportutils-plugin-trento) |
 | [mcp-server](https://github.com/trento-project/mcp-server) | [`1.1.1`](https://github.com/trento-project/mcp-server/releases/tag/1.1.1) | [`1.1.1`](https://build.opensuse.org/package/show/devel:sap:trento/mcp-server-trento) | [`1.1.1+git.27.1788447802.1f09e91`](https://build.opensuse.org/package/show/devel:sap:trento:factory/mcp-server-trento) |
 | [ansible](https://github.com/trento-project/ansible) | [`1.0.0`](https://github.com/trento-project/ansible/releases/tag/1.0.0) | [`1.0.0`](https://build.opensuse.org/package/show/devel:sap:trento/ansible-trento) | [`1.0.0+git.66.1788367299.342091d`](https://build.opensuse.org/package/show/devel:sap:trento:factory/ansible-trento) |
@@ -34,6 +34,6 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 
 Packages reach these products through the `SLES_SAP`, `sle-module-sap-applications` channels.
 
-<sub>Generated from the GitHub, OBS and SCC APIs on 2026-09-03 18:37 UTC. Do not edit by hand.</sub>
+<sub>Generated from the GitHub, OBS and SCC APIs on 2026-09-04 09:37 UTC. Do not edit by hand.</sub>
 
 <!-- END trento-release-status -->
