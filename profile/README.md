@@ -24,16 +24,16 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 
 | Package | 16.1 | 16.0 | 15.7 | 15.6 | 15.5 | 15.4 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `trento-web` | `3.1.5` | `3.1.5` | `3.1.6` | `3.1.6` | `3.1.6` | `3.1.6` |
-| `trento-wanda` | `2.1.0` | `2.1.0` | `2.1.1` | `2.1.1` | `2.1.1` | `2.1.1` |
-| `trento-checks` | `1.3.1` | `1.3.1` | `1.3.2` | `1.3.2` | `1.3.2` | `1.3.2` |
-| `trento-agent` | `3.1.2` | `3.1.2` | `3.1.3` | `3.1.3` | `3.1.3` | `3.1.3` |
+| `trento-web` | `3.1.5` | `3.1.6` | `3.1.6` | `3.1.6` | `3.1.6` | `3.1.6` |
+| `trento-wanda` | `2.1.0` | `2.1.1` | `2.1.1` | `2.1.1` | `2.1.1` | `2.1.1` |
+| `trento-checks` | `1.3.1` | `1.3.2` | `1.3.2` | `1.3.2` | `1.3.2` | `1.3.2` |
+| `trento-agent` | `3.1.2` | `3.1.3` | `3.1.3` | `3.1.3` | `3.1.3` | `3.1.3` |
 | `supportutils-plugin-trento` | `3.1.0` | `3.1.0` | `3.1.0` | `3.1.0` | `3.1.0` | `3.1.0` |
-| `mcp-server-trento` | `1.1.1` | `1.1.1` | `1.1.2` | `1.1.2` | `1.1.2` | `1.1.2` |
-| `ansible-trento` | `1.0.0` | `1.0.0` | `1.0.1` | `1.0.1` | `1.0.1` | — |
+| `mcp-server-trento` | `1.1.1` | `1.1.2` | `1.1.2` | `1.1.2` | `1.1.2` | `1.1.2` |
+| `ansible-trento` | `1.0.0` | `1.0.1` | `1.0.1` | `1.0.1` | `1.0.1` | — |
 
 Packages reach these products through the `SLES_SAP`, `sle-module-sap-applications` channels.
 
-<sub>Generated from the GitHub, OBS and SCC APIs on 2026-09-24 15:04 UTC. Do not edit by hand.</sub>
+<sub>Generated from the GitHub, OBS and SCC APIs on 2026-09-24 19:08 UTC. Do not edit by hand.</sub>
 
 <!-- END trento-release-status -->
