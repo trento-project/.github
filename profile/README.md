@@ -17,7 +17,7 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 | [agent](https://github.com/trento-project/agent) | [`3.1.3`](https://github.com/trento-project/agent/releases/tag/3.1.3) | [`3.1.3`](https://build.opensuse.org/package/show/devel:sap:trento/trento-agent) | [`3.1.3+git.79.1790342801.8fc8f24`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-agent) |
 | [support](https://github.com/trento-project/support) | [`3.1.0`](https://github.com/trento-project/support/releases/tag/3.1.0) | [`3.1.0`](https://build.opensuse.org/package/show/devel:sap:trento/supportutils-plugin-trento) | [`3.1.0+git.8.1789638172.61b801d`](https://build.opensuse.org/package/show/devel:sap:trento:factory/supportutils-plugin-trento) |
 | [mcp-server](https://github.com/trento-project/mcp-server) | [`1.1.2`](https://github.com/trento-project/mcp-server/releases/tag/1.1.2) | [`1.1.2`](https://build.opensuse.org/package/show/devel:sap:trento/mcp-server-trento) | [`1.1.2+git.4.1789638133.8e10625`](https://build.opensuse.org/package/show/devel:sap:trento:factory/mcp-server-trento) |
-| [ansible](https://github.com/trento-project/ansible) | [`1.0.1`](https://github.com/trento-project/ansible/releases/tag/1.0.1) | [`1.0.1`](https://build.opensuse.org/package/show/devel:sap:trento/ansible-trento) | [`1.0.1+git.6.1790326591.6b76ffc`](https://build.opensuse.org/package/show/devel:sap:trento:factory/ansible-trento) |
+| [ansible](https://github.com/trento-project/ansible) | [`1.0.1`](https://github.com/trento-project/ansible/releases/tag/1.0.1) | [`1.0.1`](https://build.opensuse.org/package/show/devel:sap:trento/ansible-trento) | [`1.0.1+git.8.1790593066.9c74188`](https://build.opensuse.org/package/show/devel:sap:trento:factory/ansible-trento) |
 | [helm-charts](https://github.com/trento-project/helm-charts) | [`3.1.5`](https://github.com/trento-project/helm-charts/releases/tag/3.1.5) | [`3.1.5`](https://build.opensuse.org/package/show/devel:sap:trento/trento-server-helm) | [`3.1.5`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-server-helm) |
 
 ### Available in SUSE Linux Enterprise Server for SAP applications
@@ -34,6 +34,6 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 
 Packages reach these products through the `SLES_SAP`, `sle-module-sap-applications` channels.
 
-<sub>Generated from the GitHub, OBS and SCC APIs on 2026-09-25 13:45 UTC. Do not edit by hand.</sub>
+<sub>Generated from the GitHub, OBS and SCC APIs on 2026-09-28 15:26 UTC. Do not edit by hand.</sub>
 
 <!-- END trento-release-status -->
