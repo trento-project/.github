@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+---
+name: Elixir dependencies
+
+on:
+  workflow_call:
+    inputs:
+      toolchains:
+        description: JSON array of `{elixir, otp}` objects, the `TOOLCHAINS` output of elixir-toolchain.yaml.
+        required: true
+        type: string
+      mix_envs:
+        description: JSON array of the MIX_ENV values to build.
+        required: true
+        type: string
+      checkout_ref:
+        description: Ref to build. Empty means the ref that triggered the workflow.
+        required: false
+        type: string
+        default: ""
+      cache_key_suffix:
+        description: Extra segment for the cache key, passed to setup-elixir.
+        required: false
+        type: string
+        default: ""
+      env:
+        description: JSON object of extra environment variables for the build steps.
+        required: false
+        type: string
+        default: "{}"
+
+jobs:
+  elixir-deps:
+    name: Elixir ${{ matrix.mix_env }} dependencies (Elixir ${{ matrix.toolchain.elixir }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mix_env: ${{ fromJson(inputs.mix_envs) }}
+        toolchain: ${{ fromJson(inputs.toolchains) }}
+    env:
+      MIX_ENV: ${{ matrix.mix_env }}
+    steps:
+      - name: Export extra environment
+        env:
+          EXTRA_ENV: ${{ inputs.env }}
+        run: |
+          jq -r 'if type == "object" then to_entries[] | "\(.key)=\(.value)" else error("env must be a JSON object") end' <<< "$EXTRA_ENV" >> "$GITHUB_ENV"
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.checkout_ref }}
+      - name: Set up Elixir and restore cached dependencies
+        id: mix-cache
+        uses: trento-project/.github/actions/setup-elixir@shared-elixir-otp-toolchain-matrix
+        with:
+          otp-version: ${{ matrix.toolchain.otp }}
+          elixir-version: ${{ matrix.toolchain.elixir }}
+          cache-key-suffix: ${{ inputs.cache_key_suffix }}
+      - name: Install Dependencies
+        if: steps.mix-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p priv/plts
+          mix local.rebar --force
+          mix local.hex --force
+          mix deps.get
+          mix deps.compile --warnings-as-errors
+      - name: Build Dialyzer PLT
+        if: steps.mix-cache.outputs.cache-hit != 'true' && matrix.mix_env != 'prod'
+        run: mix dialyzer --plt
