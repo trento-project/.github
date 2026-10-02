@@ -68,3 +68,49 @@ If `bc_enabled` is true and `elixir_bc` or `erlang_bc` is empty, the
 workflow fails.
 
 To disable the runs again, remove the `with:` block.
+
+## Releases and pinning
+
+Callers pin the workflows and actions of this repository to the full
+commit SHA of a release, with the tag as a comment. The examples above use
+`@main` to stay short.
+
+```yaml
+uses: trento-project/.github/.github/workflows/elixir-deps.yaml@<sha> # v1.12.0
+```
+
+Pin `elixir-toolchain.yaml`, `elixir-deps.yaml` and `actions/setup-elixir`
+to the same release.
+
+### Change `actions/setup-elixir`
+
+`elixir-deps.yaml` uses `actions/setup-elixir` with a full reference,
+because `./` resolves against the caller repository. A commit cannot
+contain its own SHA, so a change to `actions/setup-elixir` takes two
+releases.
+
+1. Merge the change to `actions/setup-elixir` to `main`.
+2. Create a release, for example `v1.11.0`.
+3. Get the commit SHA of the release with `git rev-list -n 1 v1.11.0`.
+4. In a new pull request, pin `actions/setup-elixir` in `elixir-deps.yaml` to that SHA.
+5. Merge the pull request and create a release, for example `v1.12.0`.
+6. Pin the callers to `v1.12.0`.
+
+Dependabot in this repository proposes a new pin for `elixir-deps.yaml`
+after each release. Merge it only if `actions/setup-elixir` changed after
+the pinned release.
+
+### Check the cache key before you pin callers
+
+The dependency build in `elixir-deps.yaml` writes the cache with the
+`actions/setup-elixir` that it pins. The other caller jobs read the cache
+with the `actions/setup-elixir` of the release that the caller pins. If
+the two compute different cache keys, the caller jobs find no
+dependencies and fail.
+
+Before you pin callers to a release, make sure that this command shows no
+difference:
+
+```shell
+git diff <sha pinned in elixir-deps.yaml> <release tag> -- actions/setup-elixir
+```
