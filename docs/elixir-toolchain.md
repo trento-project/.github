@@ -29,10 +29,14 @@ jobs:
 
   test:
     needs: [elixir-toolchain]
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         toolchain: ${{ fromJson(needs.elixir-toolchain.outputs.TOOLCHAINS) }}
+    env:
+      MIX_ENV: test
     steps:
+      - uses: actions/checkout@v7
       - uses: trento-project/.github/actions/setup-elixir@main
         with:
           otp-version: ${{ matrix.toolchain.otp }}
@@ -87,7 +91,8 @@ to the same release.
 `elixir-deps.yaml` uses `actions/setup-elixir` with a full reference,
 because `./` resolves against the caller repository. A commit cannot
 contain its own SHA, so a change to `actions/setup-elixir` takes two
-releases.
+releases. Until the first release is pinned, `elixir-deps.yaml` uses
+`actions/setup-elixir@main`.
 
 1. Merge the change to `actions/setup-elixir` to `main`.
 2. Create a release, for example `v1.11.0`.

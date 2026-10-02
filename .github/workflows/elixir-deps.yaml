@@ -26,7 +26,7 @@ on:
         type: string
         default: ""
       env:
-        description: JSON object of extra environment variables for the build steps.
+        description: JSON object of extra environment variables for the build steps. Values must be single-line. `MIX_ENV` is not allowed.
         required: false
         type: string
         default: "{}"
@@ -47,7 +47,12 @@ jobs:
         env:
           EXTRA_ENV: ${{ inputs.env }}
         run: |
-          jq -r 'if type == "object" then to_entries[] | "\(.key)=\(.value)" else error("env must be a JSON object") end' <<< "$EXTRA_ENV" >> "$GITHUB_ENV"
+          jq -r '
+            if type != "object" then error("env must be a JSON object")
+            elif has("MIX_ENV") then error("env must not set MIX_ENV, use mix_envs")
+            elif any(to_entries[]; "\(.key)\(.value)" | test("[\r\n]")) then error("env keys and values must be single-line")
+            else to_entries[] | "\(.key)=\(.value)"
+            end' <<< "$EXTRA_ENV" >> "$GITHUB_ENV"
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
