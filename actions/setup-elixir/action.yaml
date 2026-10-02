@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+---
+name: Set up Elixir and restore dependencies
+description: >-
+  Install Erlang/OTP and Elixir, then restore the Elixir dependency cache.
+  The jobs that build the dependencies and the jobs that use them share this
+  cache key format. MIX_ENV must be set in the job environment.
+
+inputs:
+  otp-version:
+    description: Erlang/OTP version. It is also part of the cache key.
+    required: true
+  elixir-version:
+    description: Elixir version. It is also part of the cache key.
+    required: true
+  cache-key-suffix:
+    description: Extra cache key segment, added after the Elixir version. Empty adds nothing.
+    required: false
+    default: ""
+  setup-beam:
+    description: Set to "false" to restore the cache without installing Erlang/OTP and Elixir.
+    required: false
+    default: "true"
+
+outputs:
+  cache-hit:
+    description: '"true" when the cache key matched exactly.'
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check MIX_ENV
+      shell: bash
+      run: |
+        if [[ -z "$MIX_ENV" ]]; then
+          echo "::error::MIX_ENV must be set in the job environment"
+          exit 1
+        fi
+    - name: Set up Erlang/OTP and Elixir
+      if: inputs.setup-beam == 'true'
+      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+      with:
+        otp-version: ${{ inputs.otp-version }}
+        elixir-version: ${{ inputs.elixir-version }}
+    - name: Restore Elixir dependencies
+      id: cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ env.MIX_ENV }}
+          priv/plts
+        key: erlang-${{ inputs.otp-version }}-elixir-${{ inputs.elixir-version }}${{ inputs.cache-key-suffix != '' && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('mix.lock') }}-${{ env.MIX_ENV }}

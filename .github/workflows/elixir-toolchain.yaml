@@ -1,0 +1,84 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+---
+name: OTP/Elixir toolchain
+
+on:
+  workflow_call:
+    inputs:
+      elixir_bc:
+        type: string
+        default: ""
+        description: Elixir version of the backward compatibility toolchain, for example `1.15.7-otp-26`. Required when `bc_enabled` is true.
+      erlang_bc:
+        type: string
+        default: ""
+        description: Erlang/OTP version of the backward compatibility toolchain, for example `26.2.1`. Required when `bc_enabled` is true.
+      bc_enabled:
+        type: boolean
+        default: false
+        description: Whether or not to also run Elixir jobs against the backward compatibility toolchain.
+      checkout_ref:
+        type: string
+        default: ""
+        description: Ref to read `.tool-versions` from. Defaults to the ref that triggered the workflow.
+    outputs:
+      ELIXIR_DEV:
+        description: Elixir version from `.tool-versions`.
+        value: ${{ jobs.toolchain.outputs.ELIXIR_DEV }}
+      ERLANG_DEV:
+        description: Erlang/OTP version from `.tool-versions`.
+        value: ${{ jobs.toolchain.outputs.ERLANG_DEV }}
+      TOOLCHAINS:
+        description: >-
+          JSON array of `{elixir, otp}` objects. Pass it through `fromJson` to
+          use it as a matrix dimension.
+          It holds the `.tool-versions` toolchain, preceded by the backward
+          compatibility toolchain when `bc_enabled` is true.
+        value: ${{ jobs.toolchain.outputs.TOOLCHAINS }}
+
+jobs:
+  toolchain:
+    name: Compute OTP/Elixir toolchain
+    runs-on: ubuntu-24.04
+    outputs:
+      ELIXIR_DEV: ${{ steps.compute.outputs.ELIXIR_DEV }}
+      ERLANG_DEV: ${{ steps.compute.outputs.ERLANG_DEV }}
+      TOOLCHAINS: ${{ steps.compute.outputs.TOOLCHAINS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.checkout_ref }}
+      - name: Read .tool-versions
+        uses: endorama/asdf-parse-tool-versions@115a5df5884438dfd08a3a21e9c9efdf06dd907e # v1.7.0
+      - name: Compute toolchain
+        id: compute
+        env:
+          ELIXIR_BC: ${{ inputs.elixir_bc }}
+          ERLANG_BC: ${{ inputs.erlang_bc }}
+          BC_ENABLED: ${{ inputs.bc_enabled }}
+        run: |
+          if [[ -z "$ELIXIR_VERSION" || -z "$ERLANG_VERSION" ]]; then
+            echo "::error::.tool-versions must define both elixir and erlang"
+            exit 1
+          fi
+          if [[ "$BC_ENABLED" == "true" && ( -z "$ELIXIR_BC" || -z "$ERLANG_BC" ) ]]; then
+            echo "::error::bc_enabled requires elixir_bc and erlang_bc"
+            exit 1
+          fi
+          TOOLCHAINS=$(jq -cn \
+            --arg elixir_bc "$ELIXIR_BC" --arg otp_bc "$ERLANG_BC" \
+            --arg elixir_dev "$ELIXIR_VERSION" --arg otp_dev "$ERLANG_VERSION" \
+            --arg bc_enabled "$BC_ENABLED" '
+            [
+              {elixir: $elixir_bc,  otp: $otp_bc},
+              {elixir: $elixir_dev, otp: $otp_dev}
+            ]
+            | if $bc_enabled == "true" then . else .[1:] end')
+          {
+            echo "ELIXIR_DEV=$ELIXIR_VERSION"
+            echo "ERLANG_DEV=$ERLANG_VERSION"
+            echo "TOOLCHAINS=$TOOLCHAINS"
+          } >> "$GITHUB_OUTPUT"
