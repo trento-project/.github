@@ -10,7 +10,7 @@ if [[ -z "${ELIXIR_VERSION:-}" || -z "${ERLANG_VERSION:-}" ]]; then
   exit 1
 fi
 if [[ "${BC_ENABLED:-}" == "true" && ( -z "${ELIXIR_BC:-}" || -z "${ERLANG_BC:-}" ) ]]; then
-  echo "::error::bc_enabled requires elixir_bc and erlang_bc"
+  echo "::error::bc-enabled requires elixir-bc and erlang-bc"
   exit 1
 fi
 TOOLCHAINS=$(jq -cn \
