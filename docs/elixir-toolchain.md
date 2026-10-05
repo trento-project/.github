@@ -7,14 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 
 Two composite actions set up the Elixir CI jobs of a repository:
 
-- `actions/elixir-toolchain` tells the jobs which Erlang/OTP and Elixir
-  versions to use. It reads them from the `.tool-versions` file of the
-  caller repository.
+- `actions/elixir-setup` reads the Erlang/OTP and Elixir versions from the
+  `.tool-versions` file of the caller repository. Then it builds and caches
+  the dependencies for each toolchain and `MIX_ENV`, one after another.
 - `actions/setup-elixir` installs Erlang/OTP and Elixir and restores the
-  dependency cache. With `build-deps: "true"`, it also builds the
-  dependencies on a cache miss.
+  dependency cache in the other jobs.
 
-## Toolchain outputs
+## Outputs of `elixir-setup`
 
 | | |
 | --- | --- |
@@ -26,55 +25,33 @@ By default, `TOOLCHAINS` holds one toolchain: the one from `.tool-versions`.
 
 ## Usage
 
-A matrix needs the output of an earlier job. Run the toolchain action in
-its own job, and expose its outputs as job outputs. Build the dependencies
-in one job, then use them in the other jobs.
+A matrix needs the output of an earlier job. Run `elixir-setup` in its own
+job, and expose its outputs as job outputs.
 
 ```yaml
 jobs:
-  elixir-toolchain:
-    name: Elixir toolchain
+  elixir-setup:
+    name: Elixir toolchain and dependencies
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     outputs:
-      TOOLCHAINS: ${{ steps.toolchain.outputs.TOOLCHAINS }}
+      TOOLCHAINS: ${{ steps.setup.outputs.TOOLCHAINS }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - id: toolchain
-        uses: trento-project/.github/actions/elixir-toolchain@main
-
-  elixir-deps:
-    name: Elixir ${{ matrix.mix_env }} dependencies (Elixir ${{ matrix.toolchain.elixir }})
-    needs: [elixir-toolchain]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        mix_env: [dev, test]
-        toolchain: ${{ fromJson(needs.elixir-toolchain.outputs.TOOLCHAINS) }}
-    env:
-      MIX_ENV: ${{ matrix.mix_env }}
-    steps:
-      - uses: actions/checkout@v7
+      - id: setup
+        uses: trento-project/.github/actions/elixir-setup@main
         with:
-          persist-credentials: false
-      - uses: trento-project/.github/actions/setup-elixir@main
-        with:
-          otp-version: ${{ matrix.toolchain.otp }}
-          elixir-version: ${{ matrix.toolchain.elixir }}
-          build-deps: "true"
+          mix-envs: '["dev","test"]'
 
   test:
-    needs: [elixir-toolchain, elixir-deps]
+    needs: [elixir-setup]
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        toolchain: ${{ fromJson(needs.elixir-toolchain.outputs.TOOLCHAINS) }}
+        toolchain: ${{ fromJson(needs.elixir-setup.outputs.TOOLCHAINS) }}
     env:
       MIX_ENV: test
     steps:
@@ -89,18 +66,29 @@ The dependency build runs `mix deps.compile` with third-party code. The
 `contents: read` permission and `persist-credentials: false` keep a write
 token out of reach of that code.
 
-To build the dependencies of another ref, for example the target branch
-of a pull request, set `ref` in the checkout step.
+To build the dependencies of another ref, for example the target branch of
+a pull request, set `ref` in the checkout step. Also set the `toolchains`
+input to the `TOOLCHAINS` output of the first job. The jobs that restore
+these caches use the toolchains of the current ref.
+
+## Limits
+
+A composite action cannot loop over steps. `elixir-setup` has fixed steps
+for 2 toolchains and 3 `MIX_ENV` values, and it fails on more. The builds
+run one after another in one job. Before each build, the action removes
+`deps`, `_build` and `priv/plts`, and it saves each cache right after its
+build.
 
 ## Enable backward compatibility runs
 
 Backward compatibility runs are disabled by default. To also test against
-an older toolchain, add these inputs to the toolchain step:
+an older toolchain, add these inputs to the `elixir-setup` step:
 
 ```yaml
-- id: toolchain
-  uses: trento-project/.github/actions/elixir-toolchain@main
+- id: setup
+  uses: trento-project/.github/actions/elixir-setup@main
   with:
+    mix-envs: '["dev","test"]'
     bc-enabled: "true"
     elixir-bc: "1.15.7-otp-26"
     erlang-bc: "26.2.1"
@@ -109,13 +97,13 @@ an older toolchain, add these inputs to the toolchain step:
 `TOOLCHAINS` then holds two toolchains: the backward compatibility
 toolchain first, then the one from `.tool-versions`. Every job that uses
 `TOOLCHAINS` as a matrix dimension runs once for each toolchain. You do not
-change these jobs. This includes the dependency build, so the cache for the
-older toolchain is built too.
+change these jobs. `elixir-setup` also builds the dependencies for the older
+toolchain.
 
 If `bc-enabled` is `"true"` and `elixir-bc` or `erlang-bc` is empty, the
 step fails.
 
-To disable the runs again, remove the `with:` block.
+To disable the runs again, remove these inputs.
 
 ## Releases and pinning
 
@@ -127,9 +115,8 @@ short.
 uses: trento-project/.github/actions/setup-elixir@<sha> # v1.12.0
 ```
 
-Pin all the actions to the same release. The dependency build and the
-other jobs then use the same `setup-elixir`, so they compute the same cache
-key. A change to an action takes one release.
+Pin all the actions to the same release. `elixir-setup` and `setup-elixir`
+then compute the same cache key. A change to an action takes one release.
 
 Each action keeps its bash logic in a script next to `action.yaml`, with
 bats tests in `tests/`. Run them with `bats actions/*/tests/*.bats`.

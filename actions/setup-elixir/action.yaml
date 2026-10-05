@@ -5,9 +5,8 @@
 name: Set up Elixir and restore dependencies
 description: >-
   Install Erlang/OTP and Elixir, then restore the Elixir dependency cache.
-  With build-deps, also build the dependencies on a cache miss. The jobs that
-  build the dependencies and the jobs that use them share this cache key
-  format. MIX_ENV must be set in the job environment.
+  The jobs that build the dependencies and the jobs that use them share this
+  cache key format. MIX_ENV must be set in the job environment.
 
 inputs:
   otp-version:
@@ -24,13 +23,6 @@ inputs:
     description: Set to "false" to restore the cache without installing Erlang/OTP and Elixir.
     required: false
     default: "true"
-  build-deps:
-    description: >-
-      Set to "true" to fetch and compile the dependencies, and to build the
-      Dialyzer PLT when MIX_ENV is not prod, on a cache miss. The cache saves
-      the result at the end of the job.
-    required: false
-    default: "false"
 
 outputs:
   cache-hit:
@@ -58,16 +50,3 @@ runs:
           _build/${{ env.MIX_ENV }}
           priv/plts
         key: erlang-${{ inputs.otp-version }}-elixir-${{ inputs.elixir-version }}${{ inputs.cache-key-suffix != '' && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('mix.lock') }}-${{ env.MIX_ENV }}
-    - name: Install dependencies
-      if: inputs.build-deps == 'true' && steps.cache.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        mkdir -p priv/plts
-        mix local.rebar --force
-        mix local.hex --force
-        mix deps.get
-        mix deps.compile --warnings-as-errors
-    - name: Build Dialyzer PLT
-      if: inputs.build-deps == 'true' && steps.cache.outputs.cache-hit != 'true' && env.MIX_ENV != 'prod'
-      shell: bash
-      run: mix dialyzer --plt

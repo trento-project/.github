@@ -1,0 +1,297 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+# Generated layout: 2 toolchain slots x 3 MIX_ENV slots. A composite action
+# cannot loop over steps, so each slot has its own steps. Empty slots skip.
+
+---
+name: Set up Elixir toolchain and build dependencies
+description: >-
+  Compute the OTP/Elixir toolchains from `.tool-versions`, then build and
+  cache the dependencies for each toolchain and MIX_ENV, one after another.
+  The caches use the actions/setup-elixir key format.
+
+inputs:
+  mix-envs:
+    description: JSON array of 1 to 3 MIX_ENV values to build.
+    required: true
+  cache-key-suffix:
+    description: Extra cache key segment, added after the Elixir version. Empty adds nothing.
+    required: false
+    default: ""
+  toolchains:
+    description: >-
+      JSON array of 1 or 2 `{elixir, otp}` objects. Empty means: compute them
+      from `.tool-versions`. Set it to build another ref with the toolchains
+      of the current one.
+    required: false
+    default: ""
+  elixir-bc:
+    description: Elixir version of the backward compatibility toolchain. Required when `bc-enabled` is "true".
+    required: false
+    default: ""
+  erlang-bc:
+    description: Erlang/OTP version of the backward compatibility toolchain. Required when `bc-enabled` is "true".
+    required: false
+    default: ""
+  bc-enabled:
+    description: Set to "true" to add the backward compatibility toolchain.
+    required: false
+    default: "false"
+
+outputs:
+  ELIXIR_DEV:
+    description: Elixir version from `.tool-versions`. Empty when `toolchains` is set.
+    value: ${{ steps.toolchain.outputs.ELIXIR_DEV }}
+  ERLANG_DEV:
+    description: Erlang/OTP version from `.tool-versions`. Empty when `toolchains` is set.
+    value: ${{ steps.toolchain.outputs.ERLANG_DEV }}
+  TOOLCHAINS:
+    description: JSON array of `{elixir, otp}` objects, for use as a matrix dimension.
+    value: ${{ steps.matrix.outputs.TOOLCHAINS }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read .tool-versions
+      if: inputs.toolchains == ''
+      uses: endorama/asdf-parse-tool-versions@115a5df5884438dfd08a3a21e9c9efdf06dd907e # v1.7.0
+    - name: Compute toolchain
+      id: toolchain
+      if: inputs.toolchains == ''
+      shell: bash
+      env:
+        ELIXIR_BC: ${{ inputs.elixir-bc }}
+        ERLANG_BC: ${{ inputs.erlang-bc }}
+        BC_ENABLED: ${{ inputs.bc-enabled }}
+      run: '"${{ github.action_path }}/../elixir-toolchain/compute-toolchain.sh"'
+    - name: Expand matrix
+      id: matrix
+      shell: bash
+      env:
+        TOOLCHAINS: ${{ inputs.toolchains || steps.toolchain.outputs.TOOLCHAINS }}
+        MIX_ENVS: ${{ inputs.mix-envs }}
+        CACHE_KEY_SUFFIX: ${{ inputs.cache-key-suffix }}
+      run: '"${{ github.action_path }}/expand-matrix.sh"'
+    - name: "Toolchain 1: set up Erlang/OTP and Elixir"
+      if: steps.matrix.outputs.T0_ELIXIR != ''
+      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      with:
+        otp-version: ${{ steps.matrix.outputs.T0_OTP }}
+        elixir-version: ${{ steps.matrix.outputs.T0_ELIXIR }}
+    - name: "Toolchain 1, env 1: clean the workspace"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV0 != ''
+      shell: bash
+      run: rm -rf deps _build priv/plts
+    - name: "Toolchain 1, env 1: restore dependencies"
+      id: deps-0-0
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV0 != ''
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV0 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T0_OTP }}-elixir-${{ steps.matrix.outputs.T0_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV0 }}
+    - name: "Toolchain 1, env 1: build dependencies"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV0 != '' && steps.deps-0-0.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        MIX_ENV: ${{ steps.matrix.outputs.ENV0 }}
+      run: |
+        mkdir -p priv/plts
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+        mix deps.compile --warnings-as-errors
+        if [[ "$MIX_ENV" != "prod" ]]; then mix dialyzer --plt; fi
+    - name: "Toolchain 1, env 1: save dependencies"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV0 != '' && steps.deps-0-0.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV0 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T0_OTP }}-elixir-${{ steps.matrix.outputs.T0_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV0 }}
+    - name: "Toolchain 1, env 2: clean the workspace"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV1 != ''
+      shell: bash
+      run: rm -rf deps _build priv/plts
+    - name: "Toolchain 1, env 2: restore dependencies"
+      id: deps-0-1
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV1 != ''
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV1 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T0_OTP }}-elixir-${{ steps.matrix.outputs.T0_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV1 }}
+    - name: "Toolchain 1, env 2: build dependencies"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV1 != '' && steps.deps-0-1.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        MIX_ENV: ${{ steps.matrix.outputs.ENV1 }}
+      run: |
+        mkdir -p priv/plts
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+        mix deps.compile --warnings-as-errors
+        if [[ "$MIX_ENV" != "prod" ]]; then mix dialyzer --plt; fi
+    - name: "Toolchain 1, env 2: save dependencies"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV1 != '' && steps.deps-0-1.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV1 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T0_OTP }}-elixir-${{ steps.matrix.outputs.T0_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV1 }}
+    - name: "Toolchain 1, env 3: clean the workspace"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV2 != ''
+      shell: bash
+      run: rm -rf deps _build priv/plts
+    - name: "Toolchain 1, env 3: restore dependencies"
+      id: deps-0-2
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV2 != ''
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV2 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T0_OTP }}-elixir-${{ steps.matrix.outputs.T0_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV2 }}
+    - name: "Toolchain 1, env 3: build dependencies"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV2 != '' && steps.deps-0-2.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        MIX_ENV: ${{ steps.matrix.outputs.ENV2 }}
+      run: |
+        mkdir -p priv/plts
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+        mix deps.compile --warnings-as-errors
+        if [[ "$MIX_ENV" != "prod" ]]; then mix dialyzer --plt; fi
+    - name: "Toolchain 1, env 3: save dependencies"
+      if: steps.matrix.outputs.T0_ELIXIR != '' && steps.matrix.outputs.ENV2 != '' && steps.deps-0-2.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV2 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T0_OTP }}-elixir-${{ steps.matrix.outputs.T0_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV2 }}
+    - name: "Toolchain 2: set up Erlang/OTP and Elixir"
+      if: steps.matrix.outputs.T1_ELIXIR != ''
+      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+      with:
+        otp-version: ${{ steps.matrix.outputs.T1_OTP }}
+        elixir-version: ${{ steps.matrix.outputs.T1_ELIXIR }}
+    - name: "Toolchain 2, env 1: clean the workspace"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV0 != ''
+      shell: bash
+      run: rm -rf deps _build priv/plts
+    - name: "Toolchain 2, env 1: restore dependencies"
+      id: deps-1-0
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV0 != ''
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV0 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T1_OTP }}-elixir-${{ steps.matrix.outputs.T1_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV0 }}
+    - name: "Toolchain 2, env 1: build dependencies"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV0 != '' && steps.deps-1-0.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        MIX_ENV: ${{ steps.matrix.outputs.ENV0 }}
+      run: |
+        mkdir -p priv/plts
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+        mix deps.compile --warnings-as-errors
+        if [[ "$MIX_ENV" != "prod" ]]; then mix dialyzer --plt; fi
+    - name: "Toolchain 2, env 1: save dependencies"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV0 != '' && steps.deps-1-0.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV0 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T1_OTP }}-elixir-${{ steps.matrix.outputs.T1_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV0 }}
+    - name: "Toolchain 2, env 2: clean the workspace"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV1 != ''
+      shell: bash
+      run: rm -rf deps _build priv/plts
+    - name: "Toolchain 2, env 2: restore dependencies"
+      id: deps-1-1
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV1 != ''
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV1 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T1_OTP }}-elixir-${{ steps.matrix.outputs.T1_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV1 }}
+    - name: "Toolchain 2, env 2: build dependencies"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV1 != '' && steps.deps-1-1.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        MIX_ENV: ${{ steps.matrix.outputs.ENV1 }}
+      run: |
+        mkdir -p priv/plts
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+        mix deps.compile --warnings-as-errors
+        if [[ "$MIX_ENV" != "prod" ]]; then mix dialyzer --plt; fi
+    - name: "Toolchain 2, env 2: save dependencies"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV1 != '' && steps.deps-1-1.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV1 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T1_OTP }}-elixir-${{ steps.matrix.outputs.T1_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV1 }}
+    - name: "Toolchain 2, env 3: clean the workspace"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV2 != ''
+      shell: bash
+      run: rm -rf deps _build priv/plts
+    - name: "Toolchain 2, env 3: restore dependencies"
+      id: deps-1-2
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV2 != ''
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV2 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T1_OTP }}-elixir-${{ steps.matrix.outputs.T1_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV2 }}
+    - name: "Toolchain 2, env 3: build dependencies"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV2 != '' && steps.deps-1-2.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        MIX_ENV: ${{ steps.matrix.outputs.ENV2 }}
+      run: |
+        mkdir -p priv/plts
+        mix local.rebar --force
+        mix local.hex --force
+        mix deps.get
+        mix deps.compile --warnings-as-errors
+        if [[ "$MIX_ENV" != "prod" ]]; then mix dialyzer --plt; fi
+    - name: "Toolchain 2, env 3: save dependencies"
+      if: steps.matrix.outputs.T1_ELIXIR != '' && steps.matrix.outputs.ENV2 != '' && steps.deps-1-2.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          deps
+          _build/${{ steps.matrix.outputs.ENV2 }}
+          priv/plts
+        key: erlang-${{ steps.matrix.outputs.T1_OTP }}-elixir-${{ steps.matrix.outputs.T1_ELIXIR }}${{ steps.matrix.outputs.SUFFIX }}-${{ hashFiles('mix.lock') }}-${{ steps.matrix.outputs.ENV2 }}
