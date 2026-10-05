@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+---
+name: Compute OTP/Elixir toolchain
+description: >-
+  Read Erlang/OTP and Elixir from `.tool-versions` in the working directory,
+  and build the toolchain list for an Elixir job matrix.
+
+inputs:
+  elixir-bc:
+    description: Elixir version of the backward compatibility toolchain. Required when `bc-enabled` is "true".
+    required: false
+    default: ""
+  erlang-bc:
+    description: Erlang/OTP version of the backward compatibility toolchain. Required when `bc-enabled` is "true".
+    required: false
+    default: ""
+  bc-enabled:
+    description: Set to "true" to add the backward compatibility toolchain.
+    required: false
+    default: "false"
+
+outputs:
+  ELIXIR_DEV:
+    description: Elixir version from `.tool-versions`.
+    value: ${{ steps.compute.outputs.ELIXIR_DEV }}
+  ERLANG_DEV:
+    description: Erlang/OTP version from `.tool-versions`.
+    value: ${{ steps.compute.outputs.ERLANG_DEV }}
+  TOOLCHAINS:
+    description: JSON array of `{elixir, otp}` objects, the backward compatibility toolchain first when enabled.
+    value: ${{ steps.compute.outputs.TOOLCHAINS }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read .tool-versions
+      uses: endorama/asdf-parse-tool-versions@115a5df5884438dfd08a3a21e9c9efdf06dd907e # v1.7.0
+    - name: Compute toolchain
+      id: compute
+      shell: bash
+      env:
+        ELIXIR_BC: ${{ inputs.elixir-bc }}
+        ERLANG_BC: ${{ inputs.erlang-bc }}
+        BC_ENABLED: ${{ inputs.bc-enabled }}
+      run: '"${{ github.action_path }}/compute-toolchain.sh"'

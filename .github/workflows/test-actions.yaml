@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: Apache-2.0
+
+---
+name: Test actions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - actions/**
+      - .github/workflows/test-actions.yaml
+  pull_request:
+    paths:
+      - actions/**
+      - .github/workflows/test-actions.yaml
+
+permissions:
+  contents: read
+
+env:
+  BATS_VERSION: "1.13.0" # https://github.com/bats-core/bats-core/releases
+
+jobs:
+  test:
+    name: Lint and test action scripts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup BATS
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # v4.0.0
+        with:
+          bats-version: ${{ env.BATS_VERSION }}
+      - name: Run shellcheck
+        run: shellcheck actions/*/*.sh
+      - name: Run bats tests
+        run: bats actions/*/tests/*.bats
