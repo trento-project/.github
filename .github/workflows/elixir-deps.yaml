@@ -26,7 +26,7 @@ on:
         type: string
         default: ""
       env:
-        description: JSON object of extra environment variables for the build steps. Keys must be valid environment variable names, values must be single-line. `MIX_ENV` is not allowed.
+        description: JSON object of extra environment variables for the build steps. Keys must be valid environment variable names. Values must be single-line strings, numbers or booleans. `MIX_ENV` is not allowed.
         required: false
         type: string
         default: "{}"
@@ -35,6 +35,8 @@ jobs:
   elixir-deps:
     name: Elixir ${{ matrix.mix_env }} dependencies (Elixir ${{ matrix.toolchain.elixir }})
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -51,6 +53,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.checkout_ref }}
+          persist-credentials: false
       - name: Set up Elixir and restore cached dependencies
         id: mix-cache
         uses: trento-project/.github/actions/setup-elixir@shared-elixir-otp-toolchain-matrix

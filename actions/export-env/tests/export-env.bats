@@ -86,3 +86,18 @@ assert_rejected() {
   [ "$status" -eq 0 ]
   [ "$(cat "$GITHUB_ENV")" = "A=b=c" ]
 }
+
+@test "null value: rejected" {
+  export_env '{"A": null}'
+  assert_rejected "env values must be strings, numbers or booleans"
+}
+
+@test "object value: rejected" {
+  export_env '{"A": {"B": "x"}}'
+  assert_rejected "env values must be strings, numbers or booleans"
+}
+
+@test "array value: rejected" {
+  export_env '{"A": ["x"]}'
+  assert_rejected "env values must be strings, numbers or booleans"
+}

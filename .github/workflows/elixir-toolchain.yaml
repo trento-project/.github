@@ -42,6 +42,8 @@ jobs:
   toolchain:
     name: Compute OTP/Elixir toolchain
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     outputs:
       ELIXIR_DEV: ${{ steps.compute.outputs.ELIXIR_DEV }}
       ERLANG_DEV: ${{ steps.compute.outputs.ERLANG_DEV }}
@@ -51,6 +53,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.checkout_ref }}
+          persist-credentials: false
       - name: Compute toolchain
         id: compute
         uses: trento-project/.github/actions/elixir-toolchain@shared-elixir-otp-toolchain-matrix

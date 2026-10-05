@@ -5,8 +5,8 @@
 name: Export environment variables
 description: >-
   Write the keys of a JSON object to the job environment. Keys must be valid
-  environment variable names, values must be single-line. `MIX_ENV` is not
-  allowed.
+  environment variable names. Values must be single-line strings, numbers or
+  booleans. `MIX_ENV` is not allowed.
 
 inputs:
   env:

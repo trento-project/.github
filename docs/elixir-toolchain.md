@@ -108,8 +108,8 @@ at `@main`.
 6. Pin the callers to `v1.12.0`.
 
 Dependabot in this repository proposes new pins for the workflows after
-each release. Merge them only if an action changed after the pinned
-release.
+each release, once its 14-day cooldown is over. Merge them only if an
+action changed after the pinned release.
 
 Each action keeps its bash logic in a script next to `action.yaml`, with
 bats tests in `tests/`. Run them with `bats actions/*/tests/*.bats`.

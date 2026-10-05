@@ -9,6 +9,7 @@ jq -r '
   if type != "object" then error("env must be a JSON object")
   elif has("MIX_ENV") then error("env must not set MIX_ENV, use mix_envs")
   elif any(keys[]; test("^[A-Za-z_][A-Za-z0-9_]*$") | not) then error("env keys must be valid environment variable names")
+  elif any(.[]; type | IN("string", "number", "boolean") | not) then error("env values must be strings, numbers or booleans")
   elif any(.[]; tostring | test("[\r\n]")) then error("env values must be single-line")
   else to_entries[] | "\(.key)=\(.value)"
   end' <<< "${EXTRA_ENV:-}" >> "$GITHUB_ENV"
