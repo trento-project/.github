@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 env:
-  BATS_VERSION: "1.13.0" # https://github.com/bats-core/bats-core/releases
+  BATS_VERSION: "1.14.0" # https://github.com/bats-core/bats-core/releases
 
 jobs:
   test:
