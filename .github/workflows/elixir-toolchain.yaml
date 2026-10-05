@@ -51,34 +51,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.checkout_ref }}
-      - name: Read .tool-versions
-        uses: endorama/asdf-parse-tool-versions@115a5df5884438dfd08a3a21e9c9efdf06dd907e # v1.7.0
       - name: Compute toolchain
         id: compute
-        env:
-          ELIXIR_BC: ${{ inputs.elixir_bc }}
-          ERLANG_BC: ${{ inputs.erlang_bc }}
-          BC_ENABLED: ${{ inputs.bc_enabled }}
-        run: |
-          if [[ -z "$ELIXIR_VERSION" || -z "$ERLANG_VERSION" ]]; then
-            echo "::error::.tool-versions must define both elixir and erlang"
-            exit 1
-          fi
-          if [[ "$BC_ENABLED" == "true" && ( -z "$ELIXIR_BC" || -z "$ERLANG_BC" ) ]]; then
-            echo "::error::bc_enabled requires elixir_bc and erlang_bc"
-            exit 1
-          fi
-          TOOLCHAINS=$(jq -cn \
-            --arg elixir_bc "$ELIXIR_BC" --arg otp_bc "$ERLANG_BC" \
-            --arg elixir_dev "$ELIXIR_VERSION" --arg otp_dev "$ERLANG_VERSION" \
-            --arg bc_enabled "$BC_ENABLED" '
-            [
-              {elixir: $elixir_bc,  otp: $otp_bc},
-              {elixir: $elixir_dev, otp: $otp_dev}
-            ]
-            | if $bc_enabled == "true" then . else .[1:] end')
-          {
-            echo "ELIXIR_DEV=$ELIXIR_VERSION"
-            echo "ERLANG_DEV=$ERLANG_VERSION"
-            echo "TOOLCHAINS=$TOOLCHAINS"
-          } >> "$GITHUB_OUTPUT"
+        uses: trento-project/.github/actions/elixir-toolchain@elixir-actions-bats
+        with:
+          elixir-bc: ${{ inputs.elixir_bc }}
+          erlang-bc: ${{ inputs.erlang_bc }}
+          bc-enabled: ${{ inputs.bc_enabled }}

@@ -34,11 +34,7 @@ runs:
   steps:
     - name: Check MIX_ENV
       shell: bash
-      run: |
-        if [[ -z "$MIX_ENV" ]]; then
-          echo "::error::MIX_ENV must be set in the job environment"
-          exit 1
-        fi
+      run: '"${{ github.action_path }}/check-mix-env.sh"'
     - name: Set up Erlang/OTP and Elixir
       if: inputs.setup-beam == 'true'
       uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
