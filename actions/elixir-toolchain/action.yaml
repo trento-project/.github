@@ -36,11 +36,14 @@ runs:
   using: composite
   steps:
     - name: Read .tool-versions
+      id: parse
       uses: endorama/asdf-parse-tool-versions@115a5df5884438dfd08a3a21e9c9efdf06dd907e # v1.7.0
     - name: Compute toolchain
       id: compute
       shell: bash
       env:
+        ELIXIR_VERSION: ${{ fromJson(steps.parse.outputs.tools).elixir }}
+        ERLANG_VERSION: ${{ fromJson(steps.parse.outputs.tools).erlang }}
         ELIXIR_BC: ${{ inputs.elixir-bc }}
         ERLANG_BC: ${{ inputs.erlang-bc }}
         BC_ENABLED: ${{ inputs.bc-enabled }}
