@@ -37,7 +37,7 @@ runs:
       run: '"${{ github.action_path }}/check-mix-env.sh"'
     - name: Set up Erlang/OTP and Elixir
       if: inputs.setup-beam == 'true'
-      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1
+      uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
       with:
         otp-version: ${{ inputs.otp-version }}
         elixir-version: ${{ inputs.elixir-version }}
