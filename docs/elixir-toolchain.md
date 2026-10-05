@@ -83,27 +83,36 @@ commit SHA of a release, with the tag as a comment. The examples above use
 uses: trento-project/.github/.github/workflows/elixir-deps.yaml@<sha> # v1.12.0
 ```
 
-Pin `elixir-toolchain.yaml`, `elixir-deps.yaml` and `actions/setup-elixir`
-to the same release.
+Pin `elixir-toolchain.yaml`, `elixir-deps.yaml` and the actions in
+`actions/` to the same release.
 
-### Change `actions/setup-elixir`
+### Change an action in `actions/`
 
-`elixir-deps.yaml` uses `actions/setup-elixir` with a full reference,
-because `./` resolves against the caller repository. A commit cannot
-contain its own SHA, so a change to `actions/setup-elixir` takes two
-releases. Until the first release is pinned, `elixir-deps.yaml` uses
-`actions/setup-elixir@main`.
+The workflows use the actions of this repository with a full reference,
+because `./` resolves against the caller repository:
 
-1. Merge the change to `actions/setup-elixir` to `main`.
+| Workflow | Actions |
+|---|---|
+| `elixir-toolchain.yaml` | `actions/elixir-toolchain` |
+| `elixir-deps.yaml` | `actions/export-env`, `actions/setup-elixir` |
+
+A commit cannot contain its own SHA, so a change to an action takes two
+releases. Until the first release is pinned, the workflows use the actions
+at `@main`.
+
+1. Merge the change to `main`.
 2. Create a release, for example `v1.11.0`.
 3. Get the commit SHA of the release with `git rev-list -n 1 v1.11.0`.
-4. In a new pull request, pin `actions/setup-elixir` in `elixir-deps.yaml` to that SHA.
+4. In a new pull request, pin all the action references in both workflows to that SHA.
 5. Merge the pull request and create a release, for example `v1.12.0`.
 6. Pin the callers to `v1.12.0`.
 
-Dependabot in this repository proposes a new pin for `elixir-deps.yaml`
-after each release. Merge it only if `actions/setup-elixir` changed after
-the pinned release.
+Dependabot in this repository proposes new pins for the workflows after
+each release. Merge them only if an action changed after the pinned
+release.
+
+Each action keeps its bash logic in a script next to `action.yaml`, with
+bats tests in `tests/`. Run them with `bats actions/*/tests/*.bats`.
 
 ### Check the cache key before you pin callers
 
