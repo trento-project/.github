@@ -48,23 +48,23 @@ TOOLCHAINS=[$DEV]" ]
   grep -qxF "TOOLCHAINS=[$DEV]" "$GITHUB_OUTPUT"
 }
 
-@test "BC enabled without elixir_bc: fails" {
+@test "BC enabled without elixir-bc: fails" {
   set_bc
   unset ELIXIR_BC
   export BC_ENABLED=true
   run "$SCRIPT"
   [ "$status" -eq 1 ]
-  [ "$output" = "::error::bc_enabled requires elixir_bc and erlang_bc" ]
+  [ "$output" = "::error::bc-enabled requires elixir-bc and erlang-bc" ]
   [ ! -s "$GITHUB_OUTPUT" ]
 }
 
-@test "BC enabled without erlang_bc: fails" {
+@test "BC enabled without erlang-bc: fails" {
   set_bc
   export ERLANG_BC=""
   export BC_ENABLED=true
   run "$SCRIPT"
   [ "$status" -eq 1 ]
-  [ "$output" = "::error::bc_enabled requires elixir_bc and erlang_bc" ]
+  [ "$output" = "::error::bc-enabled requires elixir-bc and erlang-bc" ]
 }
 
 @test "no elixir in .tool-versions: fails" {
