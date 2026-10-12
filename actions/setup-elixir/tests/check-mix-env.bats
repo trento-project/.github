@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # SPDX-FileCopyrightText: SUSE LLC
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 setup() {
   SCRIPT="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)/check-mix-env.sh"
