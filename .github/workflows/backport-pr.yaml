@@ -68,7 +68,7 @@ jobs:
 
       - name: Create backport Pull Request
         id: backport
-        uses: korthout/backport-action@6b65649031ac6d18ffdfd0c0820e9436f3fde22b # v4.6.1
+        uses: korthout/backport-action@8560fb503c275d433c56f05a2f64850093baa9f7 # v4.7.0
         with:
           target_branches: ${{ inputs.target_branches }}
           # Copy every label except the trigger `backport` one.
