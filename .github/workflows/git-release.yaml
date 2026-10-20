@@ -125,11 +125,15 @@ jobs:
       - name: Switch to 'release' branch
         run: git switch release 2>/dev/null || git switch -c release main
 
+      # `git merge -X theirs` favors `main` only in conflicting hunks, so
+      # changes that exist only on `release` leaked into the release.
+      # Build the merge commit from the tree of `main` instead.
       - name: Merge `main` into `release`
         run: |
-          git merge main -X theirs --no-ff \
-                         -m "Release ${{ needs.pre-release.outputs.version }}" \
-                         -m "[skip ci]"
+          commit=$(git commit-tree -S 'main^{tree}' -p release -p main \
+                     -m "Release ${{ needs.pre-release.outputs.version }}" \
+                     -m "[skip ci]")
+          git merge --ff-only "$commit"
 
       - name: Switch back to `main` branch
         run: git switch main
