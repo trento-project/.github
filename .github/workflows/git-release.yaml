@@ -130,6 +130,12 @@ jobs:
       # Build the merge commit from the tree of `main` instead.
       - name: Merge `main` into `release`
         run: |
+          # Make no empty commit when release and main are the same commit, as on
+          # the first release of a repository or on a rerun. In every other
+          # case, even with release ahead of main, the merge keeps main's tree.
+          if [ "$(git rev-parse release)" = "$(git rev-parse main)" ]; then
+            exit 0
+          fi
           commit=$(git commit-tree -S 'main^{tree}' -p release -p main \
                      -m "Release ${{ needs.pre-release.outputs.version }}" \
                      -m "[skip ci]")
