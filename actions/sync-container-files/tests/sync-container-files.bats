@@ -220,6 +220,50 @@ record_sync() {
   [ "$(git -C "$TARGET_DIR" log -1 --format=%s)" = "Sync container files with trento-project/web@${SOURCE_REF:0:10}" ]
 }
 
+@test "refuses a symlink in the container folder and leaves the target untouched" {
+  printf 'secret\n' > "$BATS_TEST_TMPDIR/secret"
+  mkdir -p "$SOURCE_DIR/packaging/suse/container"
+  ln -s "$BATS_TEST_TMPDIR/secret" "$SOURCE_DIR/packaging/suse/container/Dockerfile"
+  git -C "$SOURCE_DIR" add -A
+  git -C "$SOURCE_DIR" commit -q -m "Add a symlink"
+  SOURCE_REF=$(git -C "$SOURCE_DIR" rev-parse HEAD)
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [ "$(git -C "$TARGET_DIR" rev-list --count HEAD)" -eq 1 ]
+  [ -z "$(git -C "$TARGET_DIR" status --porcelain)" ]
+  [ ! -L "$TARGET_DIR/Dockerfile" ]
+}
+
+@test "refuses a container folder that would overwrite the .changes file" {
+  SOURCE_REF=$(commit_source "packaging/suse/container/$CHANGES_FILE" "forged entry" "Add a changes file")
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [ "$(git -C "$TARGET_DIR" rev-list --count HEAD)" -eq 1 ]
+  [ -z "$(git -C "$TARGET_DIR" status --porcelain)" ]
+}
+
+@test "refuses a .changes file in the target that is not a regular file" {
+  printf 'secret\n' > "$BATS_TEST_TMPDIR/secret"
+  rm "$TARGET_DIR/$CHANGES_FILE"
+  ln -s "$BATS_TEST_TMPDIR/secret" "$TARGET_DIR/$CHANGES_FILE"
+  git -C "$TARGET_DIR" add -A
+  git -C "$TARGET_DIR" commit -q -m "Symlinked changes"
+  SOURCE_REF=$(commit_source packaging/suse/container/Dockerfile "FROM new" "Change")
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [ "$(git -C "$TARGET_DIR" rev-list --count HEAD)" -eq 2 ]
+  [ "$(cat "$BATS_TEST_TMPDIR/secret")" = "secret" ]
+}
+
 @test "keeps files that exist only in the target" {
   SOURCE_REF=$(commit_source packaging/suse/container/Dockerfile "FROM new" "Change")
   export SOURCE_REF

@@ -34,6 +34,24 @@ ref=$(git -C "$SOURCE_DIR" rev-parse --verify "${SOURCE_REF}^{commit}")
 depth=$(tr -cd / <<< "${CONTAINER_DIR%/}/" | wc -c)
 changes="$TARGET_DIR/$CHANGES_FILE"
 
+# fail MESSAGE: report MESSAGE as a GitHub error and stop.
+fail() {
+  echo "::error::$1" >&2
+  exit 1
+}
+
+# A symlink could make the sync read and publish files of the runner, such
+# as the SSH key or the process environment.
+if git -C "$SOURCE_DIR" ls-tree -r "$ref" -- "$CONTAINER_DIR" | grep -q '^120000 '; then
+  fail "$CONTAINER_DIR at $REPOSITORY@$ref contains a symlink. Refusing to sync."
+fi
+if git -C "$SOURCE_DIR" cat-file -e "$ref:${CONTAINER_DIR%/}/$CHANGES_FILE" 2> /dev/null; then
+  fail "$CONTAINER_DIR contains $CHANGES_FILE, which only the sync writes. Refusing to sync."
+fi
+if [ ! -f "$changes" ] || [ -L "$changes" ]; then
+  fail "$CHANGES_FILE in the target is missing or is not a regular file. Refusing to sync."
+fi
+
 # The newest .changes entry that names a synced commit of this repository.
 synced=$(grep -m1 -oE "Sync .+ with $REPOSITORY@[0-9a-f]{7,40}" "$changes" | sed 's/.*@//' || true)
 if [ -n "$synced" ]; then
