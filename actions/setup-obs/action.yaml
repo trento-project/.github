@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+name: Set up OBS access
+description: >-
+  Give the job access to OBS: SSH for Git on src.opensuse.org, the osc
+  credentials, and the Git identity for the commits. Runs in the
+  continuous-delivery container, which provides init_osc_creds.sh.
+
+inputs:
+  obs-user:
+    description: The OBS user.
+    required: true
+  obs-pass:
+    description: The password of the OBS user.
+    required: true
+  obs-ssh-key:
+    description: SSH key of the OBS user, with access to the package repositories on src.opensuse.org.
+    required: true
+  author-email:
+    description: Email address of the Git commits.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up OBS access
+      shell: bash
+      env:
+        OBS_USER: ${{ inputs.obs-user }}
+        OBS_PASS: ${{ inputs.obs-pass }}
+        OBS_SSH_KEY: ${{ inputs.obs-ssh-key }}
+        AUTHOR_EMAIL: ${{ inputs.author-email }}
+      # Inside a container job, the github.action_path expression is the path on
+      # the host. The GITHUB_ACTION_PATH variable is the path in the container.
+      run: '"$GITHUB_ACTION_PATH/setup-obs.sh"'
