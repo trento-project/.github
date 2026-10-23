@@ -122,20 +122,20 @@ jobs:
           git_commit_gpgsign: true
           git_tag_gpgsign: true
 
-      - name: Switch to 'release' branch
-        run: git switch release 2>/dev/null || git switch -c release main
+      - name: Make sure the `release` branch exists
+        run: git branch -f release origin/release 2>/dev/null || git branch -f release main
 
-      - name: Merge `main` into `release`
+      # `git merge -X theirs` favors `main` only for conflicting changes, so
+      # changes that exist only on `release` leaked into the release. The
+      # `ours` strategy takes the tree of `main` (the current branch) as is.
+      - name: Merge `release` into `main`, keeping the tree of `main`
         run: |
-          git merge main -X theirs --no-ff \
-                         -m "Release ${{ needs.pre-release.outputs.version }}" \
-                         -m "[skip ci]"
+          git merge release -s ours \
+                    -m "Release ${{ needs.pre-release.outputs.version }}" \
+                    -m "[skip ci]"
 
-      - name: Switch back to `main` branch
-        run: git switch main
-
-      - name: Merge `release` into main
-        run: git merge release --ff-only
+      - name: Move `release` to `main`
+        run: git branch -f release main
 
       - name: Make a tag
         env:
