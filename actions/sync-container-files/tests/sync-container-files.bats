@@ -194,6 +194,45 @@ record_sync() {
   [ -z "$(git -C "$TARGET_DIR" status --porcelain)" ]
 }
 
+@test "replaces a synced folder with a file of the same name" {
+  synced=$(commit_source packaging/suse/container/assets/subdir/deeper/file "old" "Add a folder")
+  mkdir -p "$TARGET_DIR/assets/subdir/deeper"
+  printf 'old\n' > "$TARGET_DIR/assets/subdir/deeper/file"
+  git -C "$TARGET_DIR" add -A
+  git -C "$TARGET_DIR" commit -q -m "Synced the folder"
+  record_sync "$synced"
+  git -C "$SOURCE_DIR" rm -q -r packaging/suse/container/assets
+  SOURCE_REF=$(commit_source packaging/suse/container/assets "new" "Replace the folder with a file")
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [ -f "$TARGET_DIR/assets" ]
+  [ "$(cat "$TARGET_DIR/assets")" = new ]
+}
+
+@test "removes the folders that a deletion empties, and keeps folders with files of the target" {
+  commit_source packaging/suse/container/docs/old/file.txt "old" "Add a doc" > /dev/null
+  synced=$(commit_source packaging/suse/container/Dockerfile "FROM old" "Last synced")
+  mkdir -p "$TARGET_DIR/docs/old"
+  printf 'old\n' > "$TARGET_DIR/docs/old/file.txt"
+  printf 'only in the target\n' > "$TARGET_DIR/docs/extra.txt"
+  git -C "$TARGET_DIR" add -A
+  git -C "$TARGET_DIR" commit -q -m "Synced the docs"
+  record_sync "$synced"
+  git -C "$SOURCE_DIR" rm -q packaging/suse/container/docs/old/file.txt
+  git -C "$SOURCE_DIR" commit -q -m "Drop the doc"
+  SOURCE_REF=$(git -C "$SOURCE_DIR" rev-parse HEAD)
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$TARGET_DIR/docs/old" ]
+  [ "$(cat "$TARGET_DIR/docs/extra.txt")" = "only in the target" ]
+}
+
 @test "lists each merged PR once and skips PRs that were never merged" {
   synced=$(commit_source packaging/suse/container/Dockerfile "FROM old" "Last synced")
   record_sync "$synced"

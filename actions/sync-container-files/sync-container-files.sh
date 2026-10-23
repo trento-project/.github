@@ -21,7 +21,7 @@ fail() {
 
 # A missing tool must stop the sync. Inside an "if" or after "|| true", it
 # would only make a check pass or a lookup come back empty.
-for tool in git tar python3 grep sed tr wc sort date cat mv rm; do
+for tool in git tar python3 grep sed tr wc sort date cat mv rm rmdir; do
   command -v "$tool" > /dev/null || fail "$tool is missing. Refusing to sync."
 done
 
@@ -74,7 +74,15 @@ fi
 if [ -n "$synced" ]; then
   git -C "$SOURCE_DIR" diff -z --name-only --no-renames --diff-filter=D "$synced" "$ref" -- "$CONTAINER_DIR" \
     | while IFS= read -r -d '' path; do
-      rm -f "$TARGET_DIR/${path#"${CONTAINER_DIR%/}/"}"
+      file="$TARGET_DIR/${path#"${CONTAINER_DIR%/}/"}"
+      rm -f "$file"
+      # Remove the folders that the deletion emptied, so that a file can take
+      # the place of a folder. rmdir stops at a folder that still holds files,
+      # such as files that exist only in the target.
+      dir=${file%/*}
+      while [ "$dir" != "$TARGET_DIR" ] && rmdir "$dir" 2> /dev/null; do
+        dir=${dir%/*}
+      done
     done
 fi
 
