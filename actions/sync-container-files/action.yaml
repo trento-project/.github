@@ -58,4 +58,6 @@ runs:
         AUTHOR_EMAIL: ${{ inputs.author-email }}
         CONTAINER_DIR: ${{ inputs.container-dir }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: '"${{ github.action_path }}/sync-container-files.sh"'
+      # Inside a container job, the github.action_path expression is the path on
+      # the host. The GITHUB_ACTION_PATH variable is the path in the container.
+      run: '"$GITHUB_ACTION_PATH/sync-container-files.sh"'
