@@ -237,6 +237,36 @@ record_sync() {
   [ ! -L "$TARGET_DIR/Dockerfile" ]
 }
 
+@test "refuses a symlink that is listed before many other files" {
+  mkdir -p "$SOURCE_DIR/packaging/suse/container"
+  ln -s /proc/self/environ "$SOURCE_DIR/packaging/suse/container/0-link"
+  for i in $(seq 1 3000); do
+    printf '%s\n' "$i" > "$SOURCE_DIR/packaging/suse/container/file-$i-with-a-long-name-to-fill-the-pipe-buffer"
+  done
+  git -C "$SOURCE_DIR" add -A
+  git -C "$SOURCE_DIR" commit -q -m "Add a symlink and many files"
+  SOURCE_REF=$(git -C "$SOURCE_DIR" rev-parse HEAD)
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [ "$(git -C "$TARGET_DIR" rev-list --count HEAD)" -eq 1 ]
+}
+
+@test "refuses a submodule in the container folder" {
+  commit_source packaging/suse/container/Dockerfile "FROM new" "Change" > /dev/null
+  git -C "$SOURCE_DIR" update-index --add --cacheinfo "160000,$(git -C "$SOURCE_DIR" rev-parse HEAD),packaging/suse/container/vendored"
+  git -C "$SOURCE_DIR" commit -q -m "Add a submodule"
+  SOURCE_REF=$(git -C "$SOURCE_DIR" rev-parse HEAD)
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [ "$(git -C "$TARGET_DIR" rev-list --count HEAD)" -eq 1 ]
+}
+
 @test "refuses a container folder that would overwrite the .changes file" {
   SOURCE_REF=$(commit_source "packaging/suse/container/$CHANGES_FILE" "forged entry" "Add a changes file")
   export SOURCE_REF

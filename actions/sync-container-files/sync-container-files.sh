@@ -41,9 +41,11 @@ fail() {
 }
 
 # A symlink could make the sync read and publish files of the runner, such
-# as the SSH key or the process environment.
-if git -C "$SOURCE_DIR" ls-tree -r "$ref" -- "$CONTAINER_DIR" | grep -q '^120000 '; then
-  fail "$CONTAINER_DIR at $REPOSITORY@$ref contains a symlink. Refusing to sync."
+# as the SSH key or the process environment. Read the full listing first,
+# so that the check cannot depend on the exit status of a pipe.
+tree=$(git -C "$SOURCE_DIR" ls-tree -r "$ref" -- "$CONTAINER_DIR")
+if awk '$1 == "120000" || $1 == "160000" { found = 1 } END { exit !found }' <<< "$tree"; then
+  fail "$CONTAINER_DIR at $REPOSITORY@$ref contains a symlink or a submodule. Refusing to sync."
 fi
 if git -C "$SOURCE_DIR" cat-file -e "$ref:${CONTAINER_DIR%/}/$CHANGES_FILE" 2> /dev/null; then
   fail "$CONTAINER_DIR contains $CHANGES_FILE, which only the sync writes. Refusing to sync."
