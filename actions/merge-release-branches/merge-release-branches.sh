@@ -31,18 +31,27 @@ case "$RELEASE_TYPE" in
     if ! git merge origin/release -X ours --no-ff "${message[@]}"; then
       # -X ours resolves conflicting lines for main, but not a file that one
       # side deleted and the other side changed. Resolve these files for main
-      # too: keep the file of main, or keep it deleted. Stop on any other
-      # failure of the merge.
-      settled=0
+      # too: keep the file of main, or keep it deleted. A conflict on a path
+      # that did not exist at the merge base comes from a rename, or from a
+      # file/directory conflict. Stop on those before changing any file, and
+      # on any other failure of the merge.
+      base=$(git merge-base HEAD MERGE_HEAD) || exit 1
+      conflicts=()
       while IFS= read -r -d '' path; do
-        if git cat-file -e "HEAD:$path" 2> /dev/null; then
-          git checkout HEAD -- "$path"
-        else
-          git rm -q -- "$path"
+        if ! git cat-file -e "$base:$path" 2> /dev/null; then
+          echo "::error::The conflict on $path is not a modify/delete conflict. Merge release into main by hand." >&2
+          exit 1
         fi
-        settled=$((settled + 1))
+        conflicts+=("$path")
       done < <(git diff -z --name-only --diff-filter=U)
-      [ "$settled" -gt 0 ] || exit 1
+      [ "${#conflicts[@]}" -gt 0 ] || exit 1
+      for path in "${conflicts[@]}"; do
+        if git cat-file -e "HEAD:$path" 2> /dev/null; then
+          git --literal-pathspecs checkout HEAD -- "$path"
+        else
+          git --literal-pathspecs rm -q -- "$path"
+        fi
+      done
       git commit "${message[@]}"
     fi
     git push --atomic origin main "$VERSION"

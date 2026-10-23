@@ -54,7 +54,7 @@ commit() {
 remove() {
   git -C "$DEV" fetch -q origin
   git -C "$DEV" switch -q -C "$1" "origin/$1"
-  git -C "$DEV" rm -q "$2"
+  git -C "$DEV" --literal-pathspecs rm -q -- "$2"
   git -C "$DEV" commit -q -m "$3"
   git -C "$DEV" push -q origin "HEAD:refs/heads/$1"
 }
@@ -355,6 +355,69 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
   [ "$status" -eq 0 ]
   [ "$(show main app/legacy.txt)" = "legacy, changed on main" ]
   git -C "$ORIGIN" merge-base --is-ancestor 7.6.3 main
+}
+
+@test "hotfix: resolving a file with a glob character in its name keeps it deleted, and only it" {
+  commit main 'docs/*.md' pattern "Add a file with a glob character in its name"
+  commit main docs/a.md a "Add a Markdown file"
+  release full 7.6.4
+  [ "$status" -eq 0 ]
+  commit release 'docs/*.md' "pattern, fixed" "Fix the pattern file on release"
+  commit release docs/a.md "a, fixed" "Fix the Markdown file on release"
+  remove main 'docs/*.md' "Remove the pattern file on main"
+
+  release hotfix 7.6.5
+
+  [ "$status" -eq 0 ]
+  run git -C "$ORIGIN" cat-file -e 'main:docs/*.md'
+  [ "$status" -ne 0 ]
+  [ "$(show main docs/a.md)" = "a, fixed" ]
+}
+
+@test "hotfix: resolving a file with a glob character in its name keeps the file of main, and only it" {
+  commit main 'docs/*.md' pattern "Add a file with a glob character in its name"
+  commit main docs/a.md a "Add a Markdown file"
+  release full 7.6.6
+  [ "$status" -eq 0 ]
+  remove release 'docs/*.md' "Remove the pattern file on release"
+  commit release docs/a.md "a, fixed" "Fix the Markdown file on release"
+  commit main 'docs/*.md' "pattern, changed on main" "Change the pattern file on main"
+
+  release hotfix 7.6.7
+
+  [ "$status" -eq 0 ]
+  [ "$(show main 'docs/*.md')" = "pattern, changed on main" ]
+  [ "$(show main docs/a.md)" = "a, fixed" ]
+}
+
+@test "hotfix: a rename/rename conflict stops the job, and nothing is pushed" {
+  commit main app/legacy.txt "$LOCK" "Add a legacy file"
+  release full 7.8.0
+  [ "$status" -eq 0 ]
+  commit release app/release-name.txt "$LOCK" "Copy the legacy file on release"
+  remove release app/legacy.txt "Remove the legacy file on release"
+  commit main app/main-name.txt "$LOCK" "Copy the legacy file on main"
+  remove main app/legacy.txt "Remove the legacy file on main"
+  before=$(origin_refs)
+
+  release hotfix 7.8.1
+
+  [ "$status" -ne 0 ]
+  [ "$(origin_refs)" = "$before" ]
+}
+
+@test "hotfix: a file/directory conflict stops the job, and nothing is pushed" {
+  commit main app/lock.txt "$LOCK" "Add the lock file"
+  release full 7.8.2
+  [ "$status" -eq 0 ]
+  commit release app/config/settings settings "Add a config folder on release"
+  commit main app/config main "Add a config file on main"
+  before=$(origin_refs)
+
+  release hotfix 7.8.3
+
+  [ "$status" -ne 0 ]
+  [ "$(origin_refs)" = "$before" ]
 }
 
 @test "hotfix: a merge into main that fails pushes nothing, not even the tag" {
