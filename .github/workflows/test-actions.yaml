@@ -10,10 +10,14 @@ on:
     paths:
       - actions/**
       - .github/workflows/test-actions.yaml
+      # The setup-obs tests use the container image of this workflow.
+      - .github/workflows/obs-sync.yaml
   pull_request:
     paths:
       - actions/**
       - .github/workflows/test-actions.yaml
+      # The setup-obs tests use the container image of this workflow.
+      - .github/workflows/obs-sync.yaml
 
 permissions:
   contents: read
