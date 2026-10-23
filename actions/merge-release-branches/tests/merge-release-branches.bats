@@ -30,9 +30,6 @@ setup() {
   git init -q --bare -b main "$ORIGIN"
   git init -q -b main "$DEV"
   git -C "$DEV" remote add origin "$ORIGIN"
-
-  # A and C are in separate blocks of lines, so changes to both do not conflict.
-  LOCK=$'A\n\nB1\nB2\n\nC'
 }
 
 # commit BRANCH FILE CONTENT MESSAGE: on top of BRANCH in origin, write FILE
@@ -57,6 +54,40 @@ remove() {
   git -C "$DEV" --literal-pathspecs rm -q -- "$2"
   git -C "$DEV" commit -q -m "$3"
   git -C "$DEV" push -q origin "HEAD:refs/heads/$1"
+}
+
+# The lock file that most tests change. It recalls web 3.2.0, where a backport
+# that existed only on release leaked into assets/package-lock.json of the
+# release. Each line pins one package, with a blank line between packages, so
+# that two branches can bump different packages without a conflict.
+LOCK_FILE=assets/package-lock.txt
+
+# add_lock BRANCH: commit the lock file of the last release on BRANCH.
+add_lock() {
+  commit "$1" "$LOCK_FILE" $'lodash@4.17.20\n\nreact@18.2.0\n\naxios@1.6.0' "Add the lock file"
+}
+
+# bump BRANCH MESSAGE PACKAGE@VERSION...: on top of BRANCH in origin, pin each
+# PACKAGE at VERSION in the lock file, commit, and push to BRANCH.
+bump() {
+  local branch=$1 message=$2 line pin content=""
+  shift 2
+  for pin in "$@"; do
+    git -C "$ORIGIN" show "$branch:$LOCK_FILE" | grep -q "^${pin%@*}@" ||
+      { echo "bump: ${pin%@*} is not in the lock file" >&2; return 1; }
+  done
+  while IFS= read -r line; do
+    for pin in "$@"; do
+      [ "${line%@*}" = "${pin%@*}" ] && line=$pin
+    done
+    content+="$line"$'\n'
+  done < <(git -C "$ORIGIN" show "$branch:$LOCK_FILE")
+  commit "$branch" "$LOCK_FILE" "${content%$'\n'}" "$message"
+}
+
+# lock_at REF: the packages of the lock file at REF in origin, on one line.
+lock_at() {
+  git -C "$ORIGIN" show "$1:$LOCK_FILE" | grep . | paste -sd ' ' -
 }
 
 # copy_branch FROM TO: point TO in origin at the commit of FROM.
@@ -117,33 +148,33 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 
 # A full release
 
-@test "full release: a backport only on release does not leak into the release (e2e R1)" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+@test "full release: a backport only on release does not leak into the release" {
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2-backport\n\nC' "Backport a fix"
-  commit main app/lock.txt $'A\n\nB1\nB2-main\n\nC-main' "Change the lock file on main"
+  bump release "Backport a fix" lodash@4.17.21 react@18.2.1
+  bump main "Update react and axios on main" react@18.3.0 axios@1.7.0
   main_before=$(rev main)
 
   release full 1.1.0
 
   [ "$status" -eq 0 ]
-  [ "$(show 1.1.0 app/lock.txt)" = $'A\n\nB1\nB2-main\n\nC-main' ]
+  [ "$(lock_at 1.1.0)" = "lodash@4.17.20 react@18.3.0 axios@1.7.0" ]
   [ "$(tree 1.1.0)" = "$(tree "$main_before")" ]
 }
 
-@test "full release: main wins when both branches change the same line (e2e R2)" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+@test "full release: main wins when both branches change the same line" {
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A\n\nB1\nB2-backport\n\nC' "Backport a fix"
-  commit main app/lock.txt $'A\n\nB1\nB2-main\n\nC' "Change the same line on main"
+  bump release "Backport a fix" react@18.2.1
+  bump main "Update react on main" react@18.3.0
 
   release full 2.1.0
 
   [ "$status" -eq 0 ]
-  [ "$(show 2.1.0 app/lock.txt)" = $'A\n\nB1\nB2-main\n\nC' ]
+  [ "$(lock_at 2.1.0)" = "lodash@4.17.20 react@18.3.0 axios@1.6.0" ]
 }
 
-@test "full release: a file changed on release and deleted on main stays deleted (e2e R3)" {
+@test "full release: a file changed on release and deleted on main stays deleted" {
   commit main app/legacy.txt legacy "Add a legacy file"
   copy_branch main release
   commit release app/legacy.txt "legacy, fixed" "Backport a fix to the legacy file"
@@ -156,8 +187,8 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
   [ "$status" -ne 0 ]
 }
 
-@test "full release: the first release creates release from main, with no new commit (e2e R4)" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+@test "full release: the first release creates release from main, with no new commit" {
+  add_lock main
   main_before=$(rev main)
 
   release full 4.1.0
@@ -169,22 +200,22 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "full release: release ahead of main keeps the tree of main" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
+  bump release "Backport a fix" lodash@4.17.21
   main_before=$(rev main)
 
   release full 5.1.0
 
   [ "$status" -eq 0 ]
-  [ "$(show 5.1.0 app/lock.txt)" = "$LOCK" ]
+  [ "$(lock_at 5.1.0)" = "lodash@4.17.20 react@18.2.0 axios@1.6.0" ]
   [ "$(tree 5.1.0)" = "$(tree "$main_before")" ]
 }
 
 @test "full release: release already in main adds no commit, and release moves to main" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit main app/lock.txt $'A\n\nB1\nB2\n\nC-main' "Change the lock file on main"
+  bump main "Update axios on main" axios@1.7.0
   main_before=$(rev main)
 
   release full 5.2.0
@@ -196,10 +227,10 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "full release: the release commit has main, then release, as parents" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
-  commit main app/lock.txt $'A\n\nB1\nB2\n\nC-main' "Change the lock file on main"
+  bump release "Backport a fix" lodash@4.17.21
+  bump main "Update axios on main" axios@1.7.0
   release_before=$(rev release)
   main_before=$(rev main)
 
@@ -210,9 +241,9 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "full release: uses release from origin when the checkout has only main" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
+  bump release "Backport a fix" lodash@4.17.21
   release_before=$(rev release)
   checkout full
   run git -C "$JOB" rev-parse -q --verify refs/heads/release
@@ -225,9 +256,9 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "full release: main and release end on the tag, and the commit and the tag are signed" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
+  bump release "Backport a fix" lodash@4.17.21
 
   release full 5.5.0
 
@@ -239,9 +270,9 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "full release: the release commit skips CI" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
+  bump release "Backport a fix" lodash@4.17.21
 
   release full 5.6.0
 
@@ -249,8 +280,8 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
   [[ "$(git -C "$ORIGIN" log -1 --format=%B 5.6.0)" == *"[skip ci]"* ]]
 }
 
-@test "full release: a rerun with release and main on one commit adds no commit (e2e R6)" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+@test "full release: a rerun with release and main on one commit adds no commit" {
+  add_lock main
   copy_branch main release
   main_before=$(rev main)
 
@@ -264,8 +295,8 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 
 # A hotfix release
 
-@test "hotfix: tags release and merges it into main (e2e R5)" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+@test "hotfix: tags release and merges it into main" {
+  add_lock main
   release full 7.1.0
   [ "$status" -eq 0 ]
   commit release app/hotfix.txt hotfix "Fix a bug on release"
@@ -281,7 +312,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "hotfix: the merge into main and the tag are signed, and the merge skips CI" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   release full 7.2.0
   [ "$status" -eq 0 ]
   commit release app/hotfix.txt hotfix "Fix a bug on release"
@@ -295,26 +326,26 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "hotfix: main keeps its side of a conflicting line and gets the other release changes" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   release full 7.3.0
   [ "$status" -eq 0 ]
-  commit release app/lock.txt $'A-hotfix\n\nB1\nB2-hotfix\n\nC' "Fix a bug on release"
-  commit main app/lock.txt $'A\n\nB1\nB2-main\n\nC' "Change the same line on main"
+  bump release "Fix a bug on release" lodash@4.17.21 react@18.2.1
+  bump main "Update react on main" react@18.3.0
 
   release hotfix 7.3.1
 
   [ "$status" -eq 0 ]
-  [ "$(show main app/lock.txt)" = $'A-hotfix\n\nB1\nB2-main\n\nC' ]
+  [ "$(lock_at main)" = "lodash@4.17.21 react@18.3.0 axios@1.6.0" ]
 }
 
-@test "full release after a hotfix keeps the tree of main (e2e R5)" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+@test "full release after a hotfix keeps the tree of main" {
+  add_lock main
   release full 7.4.0
   [ "$status" -eq 0 ]
   commit release app/hotfix.txt hotfix "Fix a bug on release"
   release hotfix 7.4.1
   [ "$status" -eq 0 ]
-  commit main app/lock.txt $'A\n\nB1\nB2\n\nC-main' "Change the lock file on main"
+  bump main "Update axios on main" axios@1.7.0
   main_before=$(rev main)
 
   release full 7.5.0
@@ -391,12 +422,12 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "hotfix: a rename/rename conflict stops the job, and nothing is pushed" {
-  commit main app/legacy.txt "$LOCK" "Add a legacy file"
+  commit main app/legacy.txt legacy "Add a legacy file"
   release full 7.8.0
   [ "$status" -eq 0 ]
-  commit release app/release-name.txt "$LOCK" "Copy the legacy file on release"
+  commit release app/release-name.txt legacy "Copy the legacy file on release"
   remove release app/legacy.txt "Remove the legacy file on release"
-  commit main app/main-name.txt "$LOCK" "Copy the legacy file on main"
+  commit main app/main-name.txt legacy "Copy the legacy file on main"
   remove main app/legacy.txt "Remove the legacy file on main"
   before=$(origin_refs)
 
@@ -407,7 +438,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "hotfix: a file/directory conflict stops the job, and nothing is pushed" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   release full 7.8.2
   [ "$status" -eq 0 ]
   commit release app/config/settings settings "Add a config folder on release"
@@ -421,7 +452,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "hotfix: a merge into main that fails pushes nothing, not even the tag" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   release full 7.7.0
   [ "$status" -eq 0 ]
   commit release app/hotfix.txt hotfix "Fix a bug on release"
@@ -440,9 +471,9 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 # Failures
 
 @test "stops before pushing when the release commit cannot be signed" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
+  bump release "Backport a fix" lodash@4.17.21
   before=$(origin_refs)
 
   release full 8.1.0 "${NO_SIGNING[@]}"
@@ -453,7 +484,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "stops before pushing when the tag cannot be signed" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
   before=$(origin_refs)
 
@@ -465,9 +496,9 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "stops before pushing when the version is missing" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
+  bump release "Backport a fix" lodash@4.17.21
   before=$(origin_refs)
 
   release full ""
@@ -478,7 +509,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "stops before pushing when the release type is unknown" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
   before=$(origin_refs)
 
@@ -490,7 +521,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "stops before pushing when the tag already exists, as on a rerun after deleting only the GitHub release" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   release full 8.4.0
   [ "$status" -eq 0 ]
   before=$(origin_refs)
@@ -503,9 +534,9 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "fails when main moved in origin after the checkout" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
+  bump release "Backport a fix" lodash@4.17.21
   checkout full
   commit main app/late.txt late "Merge a pull request during the release"
 
@@ -516,9 +547,9 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "a push that main rejects leaves release and the tags in origin unchanged" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   copy_branch main release
-  commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
+  bump release "Backport a fix" lodash@4.17.21
   checkout full
   commit main app/late.txt late "Merge a pull request during the release"
   release_before=$(rev release)
@@ -533,7 +564,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "hotfix: a push that main rejects leaves the tags in origin unchanged" {
-  commit main app/lock.txt "$LOCK" "Add the lock file"
+  add_lock main
   release full 8.7.0
   [ "$status" -eq 0 ]
   commit release app/hotfix.txt hotfix "Fix a bug on release"
