@@ -325,11 +325,11 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "hotfix: a file changed on release and deleted on main stays deleted" {
-  skip "Known gap: -X ours does not settle a modify/delete conflict, so the merge into main stops"
   commit main app/legacy.txt legacy "Add a legacy file"
   release full 7.6.0
   [ "$status" -eq 0 ]
   commit release app/legacy.txt "legacy, fixed" "Fix the legacy file on release"
+  commit release app/hotfix.txt hotfix "Fix a bug on release"
   remove main app/legacy.txt "Remove the legacy file"
 
   release hotfix 7.6.1
@@ -337,22 +337,40 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
   [ "$status" -eq 0 ]
   run git -C "$ORIGIN" cat-file -e main:app/legacy.txt
   [ "$status" -ne 0 ]
+  [ "$(show main app/hotfix.txt)" = hotfix ]
+  git -C "$ORIGIN" merge-base --is-ancestor 7.6.1 main
+  git -C "$ORIGIN" verify-commit main
+  [[ "$(git -C "$ORIGIN" log -1 --format=%B main)" == *"[skip ci]"* ]]
 }
 
-# The modify/delete conflict of the test above is the merge failure we know
-# of. If a fix settles that conflict, give this test another failing merge.
-@test "hotfix: a merge into main that fails pushes nothing, not even the tag" {
+@test "hotfix: a file deleted on release and changed on main stays as main has it" {
   commit main app/legacy.txt legacy "Add a legacy file"
+  release full 7.6.2
+  [ "$status" -eq 0 ]
+  remove release app/legacy.txt "Remove the legacy file on release"
+  commit main app/legacy.txt "legacy, changed on main" "Change the legacy file on main"
+
+  release hotfix 7.6.3
+
+  [ "$status" -eq 0 ]
+  [ "$(show main app/legacy.txt)" = "legacy, changed on main" ]
+  git -C "$ORIGIN" merge-base --is-ancestor 7.6.3 main
+}
+
+@test "hotfix: a merge into main that fails pushes nothing, not even the tag" {
+  commit main app/lock.txt "$LOCK" "Add the lock file"
   release full 7.7.0
   [ "$status" -eq 0 ]
-  commit release app/legacy.txt "legacy, fixed" "Fix the legacy file on release"
-  remove main app/legacy.txt "Remove the legacy file"
+  commit release app/hotfix.txt hotfix "Fix a bug on release"
   before=$(origin_refs)
+  checkout hotfix
+  printf '#!/bin/sh\necho "merge refused by hook"\nexit 1\n' > "$JOB/.git/hooks/pre-merge-commit"
+  chmod +x "$JOB/.git/hooks/pre-merge-commit"
 
-  release hotfix 7.7.1
+  run_script hotfix 7.7.1
 
   [ "$status" -ne 0 ]
-  [[ "$output" == *CONFLICT* ]]
+  [[ "$output" == *"merge refused by hook"* ]]
   [ "$(origin_refs)" = "$before" ]
 }
 

@@ -27,8 +27,24 @@ case "$RELEASE_TYPE" in
   hotfix)
     git tag "$VERSION" -m "Release $VERSION"
     git switch main
-    git merge origin/release -X ours --no-ff \
-      -m "Merge Release $VERSION into main" -m "[skip ci]"
+    message=(-m "Merge Release $VERSION into main" -m "[skip ci]")
+    if ! git merge origin/release -X ours --no-ff "${message[@]}"; then
+      # -X ours resolves conflicting lines for main, but not a file that one
+      # side deleted and the other side changed. Resolve these files for main
+      # too: keep the file of main, or keep it deleted. Stop on any other
+      # failure of the merge.
+      settled=0
+      while IFS= read -r -d '' path; do
+        if git cat-file -e "HEAD:$path" 2> /dev/null; then
+          git checkout HEAD -- "$path"
+        else
+          git rm -q -- "$path"
+        fi
+        settled=$((settled + 1))
+      done < <(git diff -z --name-only --diff-filter=U)
+      [ "$settled" -gt 0 ] || exit 1
+      git commit "${message[@]}"
+    fi
     git push --atomic origin main "$VERSION"
     ;;
   *)
