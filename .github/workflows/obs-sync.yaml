@@ -24,7 +24,7 @@ on:
         default: ""
         description: >-
           The OBS image package that receives the `packaging/suse/container/`
-          folder, when the repository has one. Defaults to `<obs_package>-image`.
+          folder. The image sync runs only when it is set.
       source_ref:
         type: string
         default: ""
@@ -141,13 +141,14 @@ jobs:
 
   sync-image:
     name: Update container image definitions
+    if: inputs.obs_image_package != ''
     runs-on: ubuntu-24.04
     container:
       image: ghcr.io/trento-project/continuous-delivery@sha256:27b18643b1d39af6551cc165e79fc147835cbb7a5dcef37e6a889f94cea1fef5 # v1.4.0
       options: -u 0:0
     env:
       OBS_PROJECT: ${{ inputs.obs_project }}
-      OBS_IMAGE_PACKAGE: ${{ inputs.obs_image_package || format('{0}-image', inputs.obs_package) }}
+      OBS_IMAGE_PACKAGE: ${{ inputs.obs_image_package }}
 
     steps:
       - name: Check out the repository
@@ -158,18 +159,14 @@ jobs:
           path: source
           persist-credentials: false
 
-      - name: Detect container files
-        id: detect
+      - name: Check the container folder
         run: |
-          if [ -d source/packaging/suse/container ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "The repository has no packaging/suse/container folder. Nothing to sync."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          if [ ! -d source/packaging/suse/container ]; then
+            echo "::error::obs_image_package is set, but the repository has no packaging/suse/container folder."
+            exit 1
           fi
 
       - name: Check out the shared workflows repository
-        if: steps.detect.outputs.enabled == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ job.workflow_repository }}
@@ -178,7 +175,6 @@ jobs:
           persist-credentials: false
 
       - name: Set up OBS access
-        if: steps.detect.outputs.enabled == 'true'
         uses: ./.shared-workflows/actions/setup-obs
         with:
           obs-user: ${{ secrets.obs_user }}
@@ -187,12 +183,10 @@ jobs:
           author-email: ${{ env.AUTHOR_EMAIL }}
 
       - name: Trust the repository checkout
-        if: steps.detect.outputs.enabled == 'true'
         run: git config --global --add safe.directory "${GITHUB_WORKSPACE}/source"
 
       - name: Check out the OBS image package
         id: checkout
-        if: steps.detect.outputs.enabled == 'true'
         run: |
           osc checkout "${OBS_PROJECT}" "${OBS_IMAGE_PACKAGE}"
           cd "${OBS_PROJECT}/${OBS_IMAGE_PACKAGE}"
@@ -207,7 +201,6 @@ jobs:
 
       - name: Sync container files
         id: sync
-        if: steps.detect.outputs.enabled == 'true'
         uses: ./.shared-workflows/actions/sync-container-files
         with:
           source-dir: source
