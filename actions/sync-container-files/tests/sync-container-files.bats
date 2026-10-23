@@ -33,6 +33,20 @@ setup() {
   git -C "$TARGET_DIR" commit -q -m "initial"
 }
 
+# tools_path TOOL...: print a PATH that holds only TOOL... and bash.
+tools_path() {
+  local dir="$BATS_TEST_TMPDIR/tools" tool
+  mkdir -p "$dir"
+  for tool in bash "$@"; do
+    if [ "$tool" = python3 ] && [ -x /usr/bin/python3 ]; then
+      ln -sf /usr/bin/python3 "$dir/python3"
+    else
+      ln -sf "$(command -v "$tool")" "$dir/$tool"
+    fi
+  done
+  echo "$dir"
+}
+
 # commit_source FILE CONTENT MESSAGE: write FILE (relative to the source
 # repository) and commit it. Prints the new commit SHA.
 commit_source() {
@@ -252,6 +266,36 @@ record_sync() {
 
   [ "$status" -ne 0 ]
   [ "$(git -C "$TARGET_DIR" rev-list --count HEAD)" -eq 1 ]
+}
+
+@test "refuses a symlink when awk is not installed" {
+  mkdir -p "$BATS_TEST_TMPDIR/no-awk"
+  printf '#!/bin/sh\necho "awk: command not found" >&2\nexit 127\n' > "$BATS_TEST_TMPDIR/no-awk/awk"
+  chmod +x "$BATS_TEST_TMPDIR/no-awk/awk"
+  mkdir -p "$SOURCE_DIR/packaging/suse/container"
+  ln -s /proc/self/environ "$SOURCE_DIR/packaging/suse/container/Dockerfile"
+  git -C "$SOURCE_DIR" add -A
+  git -C "$SOURCE_DIR" commit -q -m "Add a symlink"
+  SOURCE_REF=$(git -C "$SOURCE_DIR" rev-parse HEAD)
+  export SOURCE_REF
+
+  PATH="$BATS_TEST_TMPDIR/no-awk:$PATH" run "$SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [ "$(git -C "$TARGET_DIR" rev-list --count HEAD)" -eq 1 ]
+  [ ! -L "$TARGET_DIR/Dockerfile" ]
+}
+
+@test "stops before any change when a required tool is missing" {
+  SOURCE_REF=$(commit_source packaging/suse/container/Dockerfile "FROM new" "Change")
+  export SOURCE_REF
+  tools=$(tools_path git tar python3 grep tr wc sort date cat mv rm)
+
+  PATH="$tools" run "$SCRIPT"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"::error::sed is missing"* ]]
+  [ "$(cat "$TARGET_DIR/Dockerfile")" = "FROM old" ]
 }
 
 @test "refuses a submodule in the container folder" {
