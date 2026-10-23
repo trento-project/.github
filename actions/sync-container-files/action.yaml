@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+name: Sync container files
+description: >-
+  Copy the container folder of a repository checkout into the Git repository
+  of the matching OBS image package. Add a `.changes` entry that names the
+  synced commit and links the pull requests that changed the folder, then
+  commit. Nothing is pushed.
+
+inputs:
+  source-dir:
+    description: Checkout of the GitHub repository, with the history back to the last synced commit.
+    required: true
+  source-ref:
+    description: Commit or tag whose container folder is synced.
+    required: false
+    default: HEAD
+  target-dir:
+    description: Clone of the OBS image package Git repository, on the branch to update.
+    required: true
+  repository:
+    description: The `owner/name` of the GitHub repository.
+    required: true
+  changes-file:
+    description: Name of the `.changes` file in the target repository.
+    required: true
+  author-email:
+    description: Email address for the `.changes` entry.
+    required: true
+  container-dir:
+    description: Path of the container folder in the GitHub repository.
+    required: false
+    default: packaging/suse/container
+  github-token:
+    description: Token for the GitHub API lookup of the pull requests.
+    required: false
+    default: ""
+
+outputs:
+  changed:
+    description: '"true" when the action made a commit, "false" when the files were already in sync.'
+    value: ${{ steps.sync.outputs.changed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Sync container files
+      id: sync
+      shell: bash
+      env:
+        SOURCE_DIR: ${{ inputs.source-dir }}
+        SOURCE_REF: ${{ inputs.source-ref }}
+        TARGET_DIR: ${{ inputs.target-dir }}
+        REPOSITORY: ${{ inputs.repository }}
+        CHANGES_FILE: ${{ inputs.changes-file }}
+        AUTHOR_EMAIL: ${{ inputs.author-email }}
+        CONTAINER_DIR: ${{ inputs.container-dir }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: '"${{ github.action_path }}/sync-container-files.sh"'
