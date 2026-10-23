@@ -21,14 +21,15 @@ case "$RELEASE_TYPE" in
     git merge release -s ours -m "Release $VERSION" -m "[skip ci]"
     git branch -f release main
     git tag "$VERSION" -m "Release $VERSION"
-    git push origin main release "$VERSION"
+    # All refs or none, so that a rejected main leaves no tag behind.
+    git push --atomic origin main release "$VERSION"
     ;;
   hotfix)
     git tag "$VERSION" -m "Release $VERSION"
     git switch main
     git merge origin/release -X ours --no-ff \
       -m "Merge Release $VERSION into main" -m "[skip ci]"
-    git push origin main "$VERSION"
+    git push --atomic origin main "$VERSION"
     ;;
   *)
     echo "::error::Unknown release type: $RELEASE_TYPE" >&2

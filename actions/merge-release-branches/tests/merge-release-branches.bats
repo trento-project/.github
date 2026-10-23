@@ -435,7 +435,6 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
 }
 
 @test "a push that main rejects leaves release and the tags in origin unchanged" {
-  skip "Known gap: the push is not atomic, so release and the tag reach origin when main is rejected"
   commit main app/lock.txt "$LOCK" "Add the lock file"
   copy_branch main release
   commit release app/lock.txt $'A-backport\n\nB1\nB2\n\nC' "Backport a fix"
@@ -449,5 +448,21 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
   [[ "$output" == *rejected* ]]
   [ "$(rev release)" = "$release_before" ]
   run git -C "$ORIGIN" rev-parse -q --verify refs/tags/8.6.0
+  [ "$status" -ne 0 ]
+}
+
+@test "hotfix: a push that main rejects leaves the tags in origin unchanged" {
+  commit main app/lock.txt "$LOCK" "Add the lock file"
+  release full 8.7.0
+  [ "$status" -eq 0 ]
+  commit release app/hotfix.txt hotfix "Fix a bug on release"
+  checkout hotfix
+  commit main app/late.txt late "Merge a pull request during the release"
+
+  run_script hotfix 8.7.1
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *rejected* ]]
+  run git -C "$ORIGIN" rev-parse -q --verify refs/tags/8.7.1
   [ "$status" -ne 0 ]
 }
