@@ -6,6 +6,14 @@ name: Dependabot auto-merge
 
 on:
   workflow_call:
+    secrets:
+      gh_token:
+        description: >-
+          Token that enables auto-merge. A merge made with GITHUB_TOKEN starts
+          no workflows on the default branch, so pass a personal access token
+          or a GitHub App token to get the push run. Dependabot runs read only
+          Dependabot secrets, so store it there too. Falls back to GITHUB_TOKEN.
+        required: false
 
 # Dependabot runs get a read-only token unless the caller workflow asks for more.
 permissions:
@@ -42,6 +50,7 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGE_TOKEN: ${{ secrets.gh_token || secrets.GITHUB_TOKEN }}
         run: |
           gh pr review --approve "$PR_URL"
-          gh pr merge --auto --squash "$PR_URL"
+          GH_TOKEN="$MERGE_TOKEN" gh pr merge --auto --squash "$PR_URL"
