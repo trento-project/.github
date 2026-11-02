@@ -19,12 +19,6 @@ fail() {
   exit 1
 }
 
-# A missing tool must stop the sync. Inside an "if" or after "|| true", it
-# would only make a check pass or a lookup come back empty.
-for tool in git tar python3 grep sed tr wc sort date cat mv rm rmdir; do
-  command -v "$tool" > /dev/null || fail "$tool is missing. Refusing to sync."
-done
-
 # merged_prs COMMIT: print "NUMBER URL" for each merged pull request that
 # contains COMMIT.
 merged_prs() {
