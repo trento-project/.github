@@ -15,3 +15,5 @@ permissions:
 jobs:
   auto-merge:
     uses: ./.github/workflows/dependabot-auto-merge.yaml
+    secrets:
+      gh_token: ${{ secrets.TRENTOBOT_GH_PAT }}
