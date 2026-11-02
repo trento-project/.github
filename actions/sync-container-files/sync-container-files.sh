@@ -59,8 +59,10 @@ if [ ! -f "$changes" ] || [ -L "$changes" ]; then
   fail "$CHANGES_FILE in the target is missing or is not a regular file. Refusing to sync."
 fi
 
-# The newest .changes entry that names a synced commit of this repository.
-synced=$(grep -m1 -oE "Sync .+ with $REPOSITORY@[0-9a-f]{7,40}" "$changes" | sed 's/.*@//' || true)
+# The newest .changes entry that names a synced commit of this repository:
+# a commit URL, or REPOSITORY@SHA as in the manual syncs.
+commit_url="$GITHUB_SERVER_URL/$REPOSITORY/commit/"
+synced=$(grep -m1 -oE "Sync .+ with ($commit_url|$REPOSITORY@)[0-9a-f]{7,40}" "$changes" | sed 's/.*[@/]//' || true)
 if [ -n "$synced" ]; then
   synced=$(git -C "$SOURCE_DIR" rev-parse --verify --quiet "${synced}^{commit}" || true)
 fi
@@ -98,7 +100,8 @@ if [ -n "$synced" ]; then
 else
   commits=$(git -C "$SOURCE_DIR" log -1 --format=%H "$ref" -- "$CONTAINER_DIR")
 fi
-summary="Sync container files with $REPOSITORY@${ref:0:10}"
+# A full URL, because Gitea links REPOSITORY@SHA to a commit on its own server.
+summary="Sync container files with $commit_url${ref:0:10}"
 prs=$(for commit in $commits; do
   merged_prs "$commit" 2> /dev/null \
     || echo "::warning::Could not look up the pull requests of $REPOSITORY@$commit." >&2

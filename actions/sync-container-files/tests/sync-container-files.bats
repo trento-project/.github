@@ -15,6 +15,7 @@ setup() {
   export REPOSITORY=trento-project/web
   export CHANGES_FILE=trento-web-image.changes
   export AUTHOR_EMAIL=trento-developers@suse.com
+  export GITHUB_SERVER_URL=https://github.com
   export GITHUB_API_URL="file://$BATS_TEST_TMPDIR/api"
   export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/github_output"
   : > "$GITHUB_OUTPUT"
@@ -114,7 +115,7 @@ entry_lines() {
   sed -n 2p "$TARGET_DIR/$CHANGES_FILE" \
     | grep -qE '^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) [A-Z][a-z]{2} [0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} UTC 20[0-9]{2} - trento-developers@suse.com$'
   [ "$(entry_lines)" = "
-- Sync container files with trento-project/web@${SOURCE_REF:0:10}
+- Sync container files with https://github.com/trento-project/web/commit/${SOURCE_REF:0:10}
   * https://github.com/trento-project/web/pull/4288" ]
   [ "$(sed -n 7,8p "$TARGET_DIR/$CHANGES_FILE")" = "-------------------------------------------------------------------
 Wed May 20 08:13:10 UTC 2026 - trento-developers@suse.com" ]
@@ -155,7 +156,7 @@ record_sync() {
 
   [ "$status" -eq 0 ]
   [ "$(entry_lines)" = "
-- Sync container files with trento-project/web@${SOURCE_REF:0:10}
+- Sync container files with https://github.com/trento-project/web/commit/${SOURCE_REF:0:10}
   * https://github.com/trento-project/web/pull/4900
   * https://github.com/trento-project/web/pull/4915" ]
 }
@@ -213,6 +214,23 @@ record_sync() {
   [ -e "$TARGET_DIR/_constraints" ]
 }
 
+@test "reads the last synced commit from an entry that the sync wrote" {
+  commit_source packaging/suse/container/_constraints "constraints" "Add constraints" > /dev/null
+  SOURCE_REF=$(commit_source packaging/suse/container/Dockerfile "FROM new" "Last synced")
+  export SOURCE_REF
+  run "$SCRIPT"
+  [ "$status" -eq 0 ]
+  git -C "$SOURCE_DIR" rm -q packaging/suse/container/_constraints
+  git -C "$SOURCE_DIR" commit -q -m "Drop constraints"
+  SOURCE_REF=$(git -C "$SOURCE_DIR" rev-parse HEAD)
+
+  run "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$TARGET_DIR/_constraints" ]
+  [[ "$output" != *"names no synced commit"* ]]
+}
+
 @test "replaces a synced folder with a file of the same name" {
   synced=$(commit_source packaging/suse/container/assets/subdir/deeper/file "old" "Add a folder")
   mkdir -p "$TARGET_DIR/assets/subdir/deeper"
@@ -265,7 +283,7 @@ record_sync() {
 
   [ "$status" -eq 0 ]
   [ "$(entry_lines)" = "
-- Sync container files with trento-project/web@${SOURCE_REF:0:10}
+- Sync container files with https://github.com/trento-project/web/commit/${SOURCE_REF:0:10}
   * https://github.com/trento-project/web/pull/4915" ]
 }
 
@@ -278,7 +296,7 @@ record_sync() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"::warning::Could not look up the pull requests of trento-project/web@$SOURCE_REF."* ]]
   [ "$(entry_lines)" = "
-- Sync container files with trento-project/web@${SOURCE_REF:0:10}" ]
+- Sync container files with https://github.com/trento-project/web/commit/${SOURCE_REF:0:10}" ]
   [ "$(git -C "$TARGET_DIR" rev-list --count HEAD)" -eq 2 ]
 }
 
@@ -289,7 +307,7 @@ record_sync() {
   run "$SCRIPT"
 
   [ "$status" -eq 0 ]
-  [ "$(git -C "$TARGET_DIR" log -1 --format=%s)" = "Sync container files with trento-project/web@${SOURCE_REF:0:10}" ]
+  [ "$(git -C "$TARGET_DIR" log -1 --format=%s)" = "Sync container files with https://github.com/trento-project/web/commit/${SOURCE_REF:0:10}" ]
 }
 
 @test "refuses a symlink in the container folder and leaves the target untouched" {
