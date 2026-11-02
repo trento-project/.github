@@ -212,6 +212,20 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
   [ "$(tree 5.1.0)" = "$(tree "$main_before")" ]
 }
 
+@test "full release: warns about each commit that is only on release" {
+  add_lock main
+  copy_branch main release
+  bump release "Backport a fix" lodash@4.17.21
+  bump release "Fix only on release" react@18.3.0
+
+  release full 5.1.1
+
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '^::warning::' <<< "$output")" -eq 2 ]
+  [[ "$output" == *"Backport a fix is only on release, so its changes are not in 5.1.1."* ]]
+  [[ "$output" == *"Fix only on release is only on release, so its changes are not in 5.1.1."* ]]
+}
+
 @test "full release: release already in main adds no commit, and release moves to main" {
   add_lock main
   copy_branch main release
@@ -221,6 +235,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
   release full 5.2.0
 
   [ "$status" -eq 0 ]
+  [[ "$output" != *"::warning::"* ]]
   [ "$(rev 5.2.0)" = "$main_before" ]
   [ "$(rev main)" = "$main_before" ]
   [ "$(rev release)" = "$main_before" ]
@@ -351,6 +366,7 @@ NO_SIGNING=(GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gpg.program GIT_CONFIG_VALUE_0=f
   release full 7.5.0
 
   [ "$status" -eq 0 ]
+  [[ "$output" != *"::warning::"* ]]
   [ "$(tree 7.5.0)" = "$(tree "$main_before")" ]
   [ "$(rev release)" = "$(rev 7.5.0)" ]
 }

@@ -17,7 +17,12 @@ case "$RELEASE_TYPE" in
 
     # `git merge -X theirs` favors main only for conflicting changes, so
     # changes that exist only on release leaked into the release. The ours
-    # strategy takes the tree of main (the current branch) as is.
+    # strategy takes the tree of main (the current branch) as is, so changes
+    # that exist only on release are not in the release. List them, so that
+    # they can be brought to main by hand.
+    git log --format='%h %s' HEAD..release | while read -r commit; do
+      echo "::warning::$commit is only on release, so its changes are not in $VERSION."
+    done
     git merge release -s ours -m "Release $VERSION" -m "[skip ci]"
     git branch -f release main
     git tag "$VERSION" -m "Release $VERSION"
