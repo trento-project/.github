@@ -180,6 +180,39 @@ record_sync() {
   [ -z "$(git -C "$TARGET_DIR" status --porcelain)" ]
 }
 
+@test "warns, and deletes nothing, when .changes names no synced commit" {
+  commit_source packaging/suse/container/_constraints "constraints" "Add constraints" > /dev/null
+  printf 'constraints\n' > "$TARGET_DIR/_constraints"
+  git -C "$TARGET_DIR" add -A
+  git -C "$TARGET_DIR" commit -q -m "Synced constraints"
+  git -C "$SOURCE_DIR" rm -q packaging/suse/container/_constraints
+  SOURCE_REF=$(commit_source packaging/suse/container/Dockerfile "FROM new" "Drop constraints")
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"::warning::$CHANGES_FILE names no synced commit of $REPOSITORY"* ]]
+  [ -e "$TARGET_DIR/_constraints" ]
+}
+
+@test "warns, and deletes nothing, when the synced commit is not in the source" {
+  commit_source packaging/suse/container/_constraints "constraints" "Add constraints" > /dev/null
+  printf 'constraints\n' > "$TARGET_DIR/_constraints"
+  git -C "$TARGET_DIR" add -A
+  git -C "$TARGET_DIR" commit -q -m "Synced constraints"
+  record_sync 0123456789abcdef0123456789abcdef01234567
+  git -C "$SOURCE_DIR" rm -q packaging/suse/container/_constraints
+  SOURCE_REF=$(commit_source packaging/suse/container/Dockerfile "FROM new" "Drop constraints")
+  export SOURCE_REF
+
+  run "$SCRIPT"
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"::warning::$CHANGES_FILE names no synced commit of $REPOSITORY"* ]]
+  [ -e "$TARGET_DIR/_constraints" ]
+}
+
 @test "replaces a synced folder with a file of the same name" {
   synced=$(commit_source packaging/suse/container/assets/subdir/deeper/file "old" "Add a folder")
   mkdir -p "$TARGET_DIR/assets/subdir/deeper"

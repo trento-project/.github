@@ -64,6 +64,9 @@ synced=$(grep -m1 -oE "Sync .+ with $REPOSITORY@[0-9a-f]{7,40}" "$changes" | sed
 if [ -n "$synced" ]; then
   synced=$(git -C "$SOURCE_DIR" rev-parse --verify --quiet "${synced}^{commit}" || true)
 fi
+if [ -z "$synced" ]; then
+  echo "::warning::$CHANGES_FILE names no synced commit of $REPOSITORY that the checkout has. Files removed from $CONTAINER_DIR stay in the package, and the entry links only the last commit that changed the folder." >&2
+fi
 
 if [ -n "$synced" ]; then
   git -C "$SOURCE_DIR" diff -z --name-only --no-renames --diff-filter=D "$synced" "$ref" -- "$CONTAINER_DIR" \
