@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: SUSE LLC
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+---
+name: Merge release branches
+description: >-
+  Tag a release, merge the `main` and `release` branches, and push.
+  For a full release, run it in a checkout of `main`: `release` is merged into
+  `main` with the tree of `main`, and both branches end on the tag. For a
+  hotfix release, run it in a checkout of `release`: the tag goes on
+  `release`, and `release` is merged into `main`. Signing must be on for
+  commits and tags.
+
+inputs:
+  release-type:
+    description: '"full" for a release from `main`, "hotfix" for a release from `release`.'
+    required: true
+  version:
+    description: The version to release. It is also the name of the tag.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Merge release branches
+      shell: bash
+      env:
+        RELEASE_TYPE: ${{ inputs.release-type }}
+        VERSION: ${{ inputs.version }}
+      run: '"$GITHUB_ACTION_PATH/merge-release-branches.sh"'
