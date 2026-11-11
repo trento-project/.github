@@ -18,7 +18,7 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 | [support](https://github.com/trento-project/support) | [`3.2.0`](https://github.com/trento-project/support/releases/tag/3.2.0) | [`3.2.0`](https://build.opensuse.org/package/show/devel:sap:trento/supportutils-plugin-trento) | [`3.2.0+git.1.1793619152.57f91c9`](https://build.opensuse.org/package/show/devel:sap:trento:factory/supportutils-plugin-trento) |
 | [mcp-server](https://github.com/trento-project/mcp-server) | [`1.2.0`](https://github.com/trento-project/mcp-server/releases/tag/1.2.0) | [`1.2.0`](https://build.opensuse.org/package/show/devel:sap:trento/mcp-server-trento) | [`1.2.0+git.4.1793686421.d74d6ff`](https://build.opensuse.org/package/show/devel:sap:trento:factory/mcp-server-trento) |
 | [ansible](https://github.com/trento-project/ansible) | [`1.1.0`](https://github.com/trento-project/ansible/releases/tag/1.1.0) | [`1.1.0`](https://build.opensuse.org/package/show/devel:sap:trento/ansible-trento) | [`1.1.0+git.4.1794300429.e3cfcd0`](https://build.opensuse.org/package/show/devel:sap:trento:factory/ansible-trento) |
-| [helm-charts](https://github.com/trento-project/helm-charts) | [`3.2.0`](https://github.com/trento-project/helm-charts/releases/tag/3.2.0) | [`3.2.0`](https://build.opensuse.org/package/show/devel:sap:trento/trento-server-helm) | [`3.2.0`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-server-helm) |
+| [helm-charts](https://github.com/trento-project/helm-charts) | [`3.2.0`](https://github.com/trento-project/helm-charts/releases/tag/3.2.0) | [`3.2.0`](https://build.opensuse.org/package/show/devel:sap:trento/trento-server-helm) | [`3.2.1`](https://build.opensuse.org/package/show/devel:sap:trento:factory/trento-server-helm) |
 
 ### Available in SUSE Linux Enterprise Server for SAP applications
 
@@ -34,6 +34,6 @@ Trento is an open-source web application, built by [SUSE](https://www.suse.com),
 
 Packages reach these products through the `SLES_SAP`, `sle-module-sap-applications` channels.
 
-<sub>Generated from the GitHub, OBS and SCC APIs on 2026-11-10 17:48 UTC. Do not edit by hand.</sub>
+<sub>Generated from the GitHub, OBS and SCC APIs on 2026-11-11 14:23 UTC. Do not edit by hand.</sub>
 
 <!-- END trento-release-status -->
