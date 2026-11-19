@@ -14,7 +14,7 @@ There are additional documentation and guidelines available in the
 == Reporting issues
 
 Before creating a new issue search existing issues first. For bug reports, 
-include steps to reproduce and your environement. Also, make sure
+include steps to reproduce and your environment. Also, make sure
 you properly label the issue as per our
 https://github.com/trento-project/web/labels[labels]
 
@@ -105,7 +105,7 @@ If any pre-existing copyrighted materials (including pre-existing open
 source code) authored or owned by third parties are included in the AI
 tool’s output, prior to contributing such output to the project, the
 Contributor should confirm that they have permission from the third party
-owners — such as the form of an open source license or public domain
+owners — such as in the form of an open source license or public domain
 declaration that complies with the project’s licensing policies — to use
 and modify such pre-existing materials and contribute them to the project.
 Additionally, the contributor should provide notice and attribution of such
