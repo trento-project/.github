@@ -28,20 +28,13 @@ Fixes #<issue>
 - [ ] All commits include a Signed-off-by line (DCO compliance) and are signed
      Use `git commit -s -S` to add them automatically.
 
-<!--
-Consider updating:
-- User documentation: https://github.com/trento-project/docs/tree/main/trento/adoc
-- Developer documentation: https://github.com/trento-project/docs/tree/main/content
-- Component-specific documentation, e.g., https://github.com/trento-project/web/tree/main/guides for Wanda
--->
-
 ### How was this tested?
 
 ## AI Usage Disclosure & Ownership Attestation
 
-- [ ] I have used AI tools to help me write the code
+- [ ] I have used AI tools to help me write this contribution
 
-*[optional]* AI provider/model used to write code: 
+*[optional]* AI provider/model used for this contribution:
 `<!—- model -->`  
 
 ## Additional information
